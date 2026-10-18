@@ -1,0 +1,20 @@
+{
+  "name": "nobetci-bolum2-multiplayer",
+  "version": "1.0.0",
+  "description": "NÖBETÇİ: BÖLÜM 2 — Node.js + Socket.IO multiplayer sunucusu ve Three.js istemcisi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/smoke.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.7.5"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

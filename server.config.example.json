@@ -1,0 +1,7 @@
+{
+  "port": 3000,
+  "ownerKey": "CHANGE-ME-uzun-rastgele-bir-anahtar",
+  "staffCode": "292016",
+  "trustProxy": false,
+  "allowedOrigins": []
+}
