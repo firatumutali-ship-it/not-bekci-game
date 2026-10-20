@@ -16,6 +16,7 @@ const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
+const BossCore = require('./public/boss-core.js');   // sunucu ve tek oyunculu mod aynı boss mantığını kullanır
 
 /* ---------------------------------------------------------------- AYARLAR */
 function loadConfig(overrides) {
@@ -34,6 +35,7 @@ function loadConfig(overrides) {
     allowedOrigins: String(pick('allowedOrigins', 'ALLOWED_ORIGINS', '')).split(',').map(s => s.trim()).filter(Boolean),
     bansFile: String(pick('bansFile', 'BANS_FILE', path.join(__dirname, 'data', 'bans.json'))),
     ownerTagPass: String(pick('ownerTagPass', 'OWNER_TAG_PASS', 'şifredeuali2016')),   // OWNER etiketini açmak için şifre (sunucuda doğrulanır)
+    unbanCode: String(pick('unbanCode', 'UNBAN_CODE', '20162016')),   // ENGELLENDİN ekranındaki "ban aç" şifresi (yalnızca sunucuda doğrulanır)
     maxPlayers: 8,
     ownerKeyGenerated: false
   };
@@ -112,6 +114,13 @@ class BanStore {
     const ih = ip ? hash(ip) : '';
     return this.list.some(b => (clientId && b.clientId === clientId) || (ih && b.ipHash === ih));
   }
+  /** clientId'ye ya da IP'ye bağlı tüm banları kaldırır; kaldırılan sayısını döndürür */
+  remove(clientId, ip) {
+    const ih = ip ? hash(ip) : ''; const before = this.list.length;
+    this.list = this.list.filter(b => !((clientId && b.clientId === clientId) || (ih && b.ipHash === ih)));
+    if (this.list.length !== before) this.save();
+    return before - this.list.length;
+  }
   add(clientId, ip, name, by) {
     this.list.push({ clientId: clientId || '', ipHash: ip ? hash(ip) : '', name, by, at: new Date().toISOString() });
     this.save();
@@ -131,6 +140,25 @@ function createServer(overrides) {
     next();
   });
   app.get('/healthz', (req, res) => res.json({ ok: true, rooms: rooms.size }));
+  /* Ban açma: engellenen oyuncunun soketi bağlanamadığı için HTTP ile yapılır. Şifre yalnızca burada doğrulanır. */
+  app.post('/api/unban', express.json({ limit: '1kb' }), (req, res) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      let okOrigin = false;
+      if (CFG.allowedOrigins.length) okOrigin = CFG.allowedOrigins.includes(origin);
+      else { try { okOrigin = new URL(origin).host === req.headers.host; } catch (e) { okOrigin = false; } }
+      if (!okOrigin) return res.status(403).json({ ok: false, error: 'İzin yok.' });
+    }
+    const ip = (CFG.trustProxy ? req.ip : req.socket.remoteAddress) || '';
+    const k = 'unbanfail:' + ip;
+    if (lim.count(k, 600000) >= 5) return res.status(429).json({ ok: false, error: 'Çok fazla hatalı deneme. 10 dakika bekle.' });
+    const body = req.body || {}, clientId = cleanId(body.clientId);
+    if (!clientId || typeof body.code !== 'string') return res.status(400).json({ ok: false, error: 'Geçersiz istek.' });
+    if (!safeEq(body.code.slice(0, 100), CFG.unbanCode)) { lim.hit(k, 99, 600000); return res.status(403).json({ ok: false, error: 'HATALI ŞİFRE' }); }
+    lim.reset(k);
+    const n = bans.remove(clientId, ip);
+    res.json({ ok: true, removed: n });
+  });
   app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', dotfiles: 'ignore', maxAge: 0 }));
 
   const httpServer = http.createServer(app);
@@ -193,7 +221,7 @@ function createServer(overrides) {
 
   function removeFromRoom(p, reason) {
     const room = p.room; if (!room) return;
-    room.players.delete(p.id); p.room = null;
+    room.players.delete(p.id); p.room = null; p.zone = 'park';
     try { p.sock.leave(room.code); } catch (e) { /* ignore */ }
     io.to(room.code).emit('player:left', { id: p.id, reason: reason || 'left' });
     if (room.players.size === 0) { rooms.delete(room.code); return; }
@@ -201,11 +229,71 @@ function createServer(overrides) {
     pushRoom(room);
   }
 
+
+  /* ------------------------------------------------------------ BOSS DİREKTÖRÜ (oda başına) */
+  const BTIM = Object.assign({}, BossCore.TIMING, (overrides && overrides.bossTiming) || {});
+  let bossSeq = 0;
+  const GOLD_CAP = 1000000;
+  function walletFor(room, p) {
+    let w = room.wallets.get(p.clientId);
+    if (!w) { w = { gold: 0, weapons: new Set() }; room.wallets.set(p.clientId, w); }
+    return w;
+  }
+  const techView = p => ({ gold: p.wallet.gold, weapons: [...p.wallet.weapons] });
+  const sendTech = p => { try { p.sock.emit('tech:update', techView(p)); } catch (e) { /* ignore */ } };
+  function addGold(p, n) { p.wallet.gold = clamp(p.wallet.gold + n, 0, GOLD_CAP); sendTech(p); }
+  function tele(q, spot, zone) {
+    q.zone = zone; q.x = spot.x; q.y = spot.y || 0; q.z = spot.z; q.yaw = spot.yaw || 0; q.lastMoveAt = Date.now();
+    q.sock.emit('teleport', { x: q.x, y: q.y, z: q.z, yaw: q.yaw, zone });
+  }
+  function startBoss(room) {
+    if (room.boss || room.state !== 'playing') return false;
+    room.boss = BossCore.createSession({ id: ++bossSeq, timing: (overrides && overrides.bossTiming) || {} });
+    room.bossNextAt = Date.now() + BTIM.autoEvery * 1000; room.bossWarned = 0;
+    return true;
+  }
+  function bossEvents(room, evs) {
+    for (const e of evs) {
+      if (e.t === 'announce' || e.t === 'phase' || e.t === 'fx') io.to(room.code).emit('boss:fx', e);
+      else if (e.t === 'enter') {
+        const q = room.players.get(e.id); if (!q) continue;
+        if (q.wallet.weapons.size === 0) { q.wallet.weapons.add('sling'); sendTech(q); }   // silahsız kimse boss'a eli boş girmesin: SAPAN ücretsizdir (fiyat 0)
+        tele(q, e.spawn, 'wait');
+      }
+      else if (e.t === 'toArena') for (const m of e.moves) { const q = room.players.get(m.id); if (q) { q.bhp = 100; tele(q, m, 'arena'); } }
+      else if (e.t === 'hurt') {
+        const q = room.players.get(e.id); if (!q || q.zone !== 'arena' || q.bhp <= 0) continue;
+        if (q.admin && q.flags.god) continue;
+        q.bhp = Math.max(0, q.bhp - e.dmg);
+        q.sock.emit('boss:hurt', { dmg: e.dmg, k: e.k, hp: q.bhp });
+        if (q.bhp <= 0) io.to(room.code).emit('boss:down', { id: q.id, name: q.name, k: e.k });
+      }
+      else if (e.t === 'end') io.to(room.code).emit('boss:end', { result: e.result });
+      else if (e.t === 'rewards') for (const id in e.gold) { const q = room.players.get(id); if (q) addGold(q, e.gold[id]); }
+      else if (e.t === 'home') for (const m of e.moves) { const q = room.players.get(m.id); if (q) { q.bhp = 100; tele(q, m, 'park'); } }
+    }
+  }
+  function bossStep(room, dt) {
+    const S = room.boss;
+    if (!S) {
+      if (room.state !== 'playing' || !room.bossNextAt) return;
+      const left = (room.bossNextAt - Date.now()) / 1000;
+      if (left <= 0) { startBoss(room); return; }
+      for (const w of [60, 10]) if (left <= w && room.bossWarned !== w && (room.bossWarned === 0 || room.bossWarned > w)) { room.bossWarned = w; io.to(room.code).emit('boss:warn', { in: w }); }
+      return;
+    }
+    const players = [...room.players.values()].map(q => ({ id: q.id, x: q.x, z: q.z, hp: q.bhp, alive: !q.dead && q.bhp > 0, zone: q.zone }));
+    bossEvents(room, BossCore.tick(S, dt, players));
+    io.to(room.code).emit('boss:state', BossCore.snapshot(S));
+    if (S.done) { room.boss = null; }
+  }
+
   function joinRoom(p, room, name, ownerKey) {
     p.name = uniqueName(room, name);
     p.room = room; p.spawnIdx = spawnFor(room);
     p.admin = false; p.owner = false; p.ownerTagOk = false; p.tags = { staff: false, dev: false, owner: false }; p.staff = false; p.flags = { fly: false, noclip: false, god: false }; p.hammers = new Set(); p.equipped = null;
-    p.moves = 0;
+    p.moves = 0; p.zone = 'park'; p.bhp = 100; p.lastAtk = 0;
+    p.wallet = walletFor(room, p);
     if (ownerKey) {
       const ip = p.ip;
       if (lim.count('ownerfail:' + ip, 600000) >= 5) { p.keyResult = 'locked'; }
@@ -239,7 +327,7 @@ function createServer(overrides) {
       const me = { id: p.id, admin: p.admin, name: p.name, keyResult: p.keyResult };
       ok(ack, { code: room.code, you: me, room: roomView(room), spawn: room.state === 'playing' ? SPAWN_POINTS[p.spawnIdx] : null, started: room.state === 'playing' });
       pushRoom(room);
-      if (room.state === 'playing') sock.emit('room:started', { spawn: SPAWN_POINTS[p.spawnIdx] });
+      if (room.state === 'playing') { sock.emit('room:started', { spawn: SPAWN_POINTS[p.spawnIdx] }); sendTech(p); }
     }
 
     sock.on('room:create', (d, ack) => {
@@ -248,7 +336,7 @@ function createServer(overrides) {
       d = d || {};
       if (bans.isBanned(p.clientId, p.ip)) return fail(ack, 'Bu sunucudan engellendin.');
       const code = newCode(); if (!code) return fail(ack, 'Oda oluşturulamadı.');
-      const room = { code, state: 'lobby', hostId: p.id, players: new Map(), createdAt: Date.now() };
+      const room = { code, state: 'lobby', hostId: p.id, players: new Map(), createdAt: Date.now(), wallets: new Map(), boss: null, bossNextAt: 0, bossWarned: 0 };
       rooms.set(code, room);
       joinRoom(p, room, cleanName(d.name, 'Oyuncu' + crypto.randomInt(100, 999)), typeof d.ownerKey === 'string' ? d.ownerKey.slice(0, 128) : '');
       afterJoin(room, ack);
@@ -275,8 +363,8 @@ function createServer(overrides) {
       const room = p.room; if (!room) return fail(ack, 'Odada değilsin.');
       if (room.hostId !== p.id) return fail(ack, 'Oyunu sadece HOST başlatabilir.');
       if (room.state === 'playing') return fail(ack, 'Oyun zaten başladı.');
-      room.state = 'playing';
-      for (const q of room.players.values()) { placeAtSpawn(q); q.sock.emit('room:started', { spawn: SPAWN_POINTS[q.spawnIdx] }); }
+      room.state = 'playing'; room.bossNextAt = Date.now() + BTIM.autoEvery * 1000; room.bossWarned = 0;
+      for (const q of room.players.values()) { placeAtSpawn(q); q.sock.emit('room:started', { spawn: SPAWN_POINTS[q.spawnIdx] }); sendTech(q); }
       pushRoom(room); ok(ack);
     });
 
@@ -297,13 +385,14 @@ function createServer(overrides) {
       let nx = d.x, nz = d.z, ny = d.y;
       const inCorridor = Math.abs(nx) < 4.2;
       const zMin = inCorridor ? EXIT_Z_MIN : -BOUNDS;
-      const outOfBounds = Math.abs(nx) > BOUNDS || nz > BOUNDS || nz < zMin;
+      const zr = p.zone !== 'park' ? BossCore.ZONE_RECT[p.zone] : null;
+      const outOfBounds = zr ? (nx < zr.x1 || nx > zr.x2 || nz < zr.z1 || nz > zr.z2) : (Math.abs(nx) > BOUNDS || nz > BOUNDS || nz < zMin);
       const maxY = (p.admin && p.flags.fly) ? 40 : 1.6;
       const badY = ny < -0.5 || ny > maxY;
       const tp = d.tp === true;
       const allowed = vmax * dt * 1.35 + 0.9 + (tp ? TP_MAX : 0);
       const dist = Math.hypot(nx - p.x, nz - p.z);
-      const intoStaff = !p.staff && room.state === 'playing' && nx >= STAFF_ROOM.x1 && nx <= STAFF_ROOM.x2 && nz >= STAFF_ROOM.z1 && nz <= STAFF_ROOM.z2;
+      const intoStaff = !zr && !p.staff && room.state === 'playing' && nx >= STAFF_ROOM.x1 && nx <= STAFF_ROOM.x2 && nz >= STAFF_ROOM.z1 && nz <= STAFF_ROOM.z2;
       if (outOfBounds || badY || dist > allowed || intoStaff) {
         // reddet ve istemciyi sunucunun bildiği konuma geri çek (en fazla 4/sn)
         if (lim.hit('corr:' + sock.id, 4, 1000)) sock.emit('correct', { x: p.x, y: p.y, z: p.z });
@@ -314,7 +403,7 @@ function createServer(overrides) {
       p.pitch = clamp(d.pitch, -1.6, 1.6);
       p.crouch = d.crouch === true; p.flash = d.flash === true; p.sprint = d.sprint === true;
     });
-    sock.on('player:died', () => { if (p.room) p.dead = true; });
+    sock.on('player:died', () => { if (p.room && p.zone === 'park') p.dead = true; });
     sock.on('player:respawn', () => {
       if (!p.room || !p.dead) return;
       if (!lim.hit('respawn:' + sock.id, 2, 3000)) return;
@@ -413,6 +502,62 @@ function createServer(overrides) {
       ok(ack, { action: t, name: tname });
     });
 
+
+    /* ----------------------------------------------------- TEKNOLOJİ AĞACI + BOSS */
+    sock.on('shop:buy', (d, ack) => {
+      const room = p.room; if (!room || room.state !== 'playing') return fail(ack, 'Oyun başlamadı.');
+      if (!guard('buy', 15, 5000, ack)) return;
+      const W = BossCore.WEAPONS[String(d && d.item)]; if (!W) return fail(ack, 'Geçersiz eşya.');
+      if (p.zone !== 'park' || p.dead) return fail(ack, 'Şu an alışveriş yapamazsın.');
+      if (!BossCore.nearTech(p.x, p.z)) return fail(ack, 'Teknoloji ağacına yaklaş.');
+      if (p.wallet.weapons.has(W.id)) return fail(ack, 'Bu eşyaya zaten sahipsin.');
+      if (p.wallet.gold < W.price) return fail(ack, 'Yetersiz altın. ' + W.price + ' gerekli.');
+      p.wallet.gold -= W.price; p.wallet.weapons.add(W.id); sendTech(p); ok(ack, techView(p));
+    });
+    sock.on('admin:gold', (d, ack) => {
+      const room = p.room; if (!room || room.state !== 'playing') return fail(ack, 'Oyun başlamadı.');
+      if (!p.admin) return fail(ack, 'Yetkin yok.');
+      if (!p.staff || !inStaffRoom(p)) return fail(ack, 'Personel Odası\'nda olmalısın.');
+      if (!guard('gold', 10, 10000, ack)) return;
+      d = d || {}; const amt = Math.floor(Number(d.amount));
+      if (!Number.isFinite(amt) || amt < 1 || amt > 100000) return fail(ack, 'Miktar 1 ile 100000 arasında olmalı.');
+      const tg = String(d.target || 'self'); let targets = [];
+      if (tg === 'all') targets = [...room.players.values()];
+      else if (tg === 'self') targets = [p];
+      else { const q = room.players.get(tg); if (!q) return fail(ack, 'Oyuncu bulunamadı.'); targets = [q]; }
+      for (const q of targets) addGold(q, amt);
+      ok(ack, { count: targets.length, names: targets.map(q => q.name).slice(0, 8), amount: amt });
+    });
+    sock.on('boss:start', (d, ack) => {
+      const room = p.room; if (!room || room.state !== 'playing') return fail(ack, 'Oyun başlamadı.');
+      if (!p.admin) return fail(ack, 'Yetkin yok.');
+      if (!p.staff || !inStaffRoom(p)) return fail(ack, 'Personel Odası\'nda olmalısın.');
+      if (!guard('bossstart', 3, 10000, ack)) return;
+      if (room.boss) return fail(ack, 'Boss savaşı zaten sürüyor.');
+      startBoss(room);
+      io.to(room.code).emit('chat:msg', { id: 'sys', name: 'SİSTEM', admin: true, text: p.name + ' boss savaşını başlattı.', t: Date.now() });
+      ok(ack);
+    });
+    sock.on('boss:info', (d, ack) => {
+      const room = p.room; if (!room) return fail(ack, 'Odada değilsin.');
+      ok(ack, Object.assign({ active: !!room.boss, phase: room.boss ? room.boss.phase : null,
+        nextIn: room.boss || !room.bossNextAt ? null : Math.max(0, Math.round((room.bossNextAt - Date.now()) / 1000)) }, techView(p)));
+    });
+    sock.on('weapon:attack', (d, ack) => {
+      const room = p.room, S = room && room.boss;
+      if (!S || S.phase !== 'fight' || p.zone !== 'arena' || p.bhp <= 0 || !d) return fail(ack, 'Saldıramazsın.');
+      const W = BossCore.WEAPONS[String(d.w)]; if (!W || !p.wallet.weapons.has(W.id)) return fail(ack, 'Bu silaha sahip değilsin.');
+      if (!isNum(d.yaw) || !isNum(d.pitch)) return fail(ack, 'Geçersiz.');
+      if (!guard('atk', 60, 5000, ack)) return;
+      const now = Date.now(); if (now - p.lastAtk < W.cd * 1000 * 0.8) return fail(ack, 'cd');
+      p.lastAtk = now;
+      const r = BossCore.attackResult(S, p, W.id, d.yaw, clamp(d.pitch, -1.6, 1.6));
+      if (!r.hit) return ok(ack, { hit: false });
+      const res = BossCore.applyDamage(S, p.id, r.dmg);
+      if (res.gold) addGold(p, res.gold);
+      ok(ack, { hit: true, dmg: r.dmg, gold: res.gold });
+    });
+
     sock.on('net:ping', (d, ack) => { if (typeof ack === 'function') ack(); });
 
     sock.on('disconnect', () => { removeFromRoom(p, 'disconnect'); byId.delete(sock.id); });
@@ -435,9 +580,15 @@ function createServer(overrides) {
     }
   }, 66);
   tick.unref();
+  let lastBoss = Date.now();
+  const bossLoop = setInterval(() => {
+    const now = Date.now(); const dt = Math.min(0.25, (now - lastBoss) / 1000); lastBoss = now;
+    for (const room of rooms.values()) { try { bossStep(room, dt); } catch (e) { console.error('[boss]', e); room.boss = null; } }
+  }, 100);
+  bossLoop.unref();
 
   function listen(port, cb) { return httpServer.listen(port === undefined ? CFG.port : port, cb); }
-  function close(cb) { clearInterval(tick); clearInterval(sweeper); io.close(() => cb && cb()); }
+  function close(cb) { clearInterval(tick); clearInterval(bossLoop); clearInterval(sweeper); io.close(() => cb && cb()); }
   return { app, httpServer, io, CFG, bans, rooms, listen, close };
 }
 

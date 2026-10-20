@@ -1,0 +1,14 @@
+# Render.com ücretsiz web servisi — GitHub'a yükleyip "New > Blueprint" ile bağla
+services:
+  - type: web
+    name: nobetci
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: OWNER_KEY
+        sync: false   # Render panelinde kendin gir (OWNER şifresi)
+      - key: UNBAN_CODE
+        sync: false   # Render panelinde kendin gir (ban açma kodu)

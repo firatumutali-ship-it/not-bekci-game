@@ -99,3 +99,17 @@ Bir VPS'te `npm start`'ı bir süreç yöneticisiyle çalıştır ve önüne HTT
 - Çoklu oyuncu modunda kayıt (save) devre dışıdır.
 - Staff Room, fly/noclip/invincible, çekiçler ve joystick önceki dosyada yoktu; sıfırdan eklendi.
 - Test edildi: sunucu duman testleri (49), iki mobil tarayıcıyla uçtan uca, yeniden bağlanma, invincible (açık/kapalı kontrol). İnternet üzerinden gerçek ortamda **denenmedi**.
+
+## İnternetten oynamak (aynı Wi-Fi gerekmez)
+
+Oyun zaten oda kodlu çalışıyor (Among Us gibi: biri oda kurar, kodu paylaşır). Bunun için sunucunun internette sürekli açık olması gerekir:
+
+1. Projeyi bir GitHub deposuna yükle (`node_modules` hariç).
+2. render.com'da hesap aç → **New > Blueprint** → depoyu seç (`render.yaml` hazır).
+3. Panelde `OWNER_KEY` ve `UNBAN_CODE` ortam değişkenlerini kendin gir (şifreleri depoya yazma).
+4. Çıkan `https://....onrender.com` adresini arkadaşlarına gönder; telefonda da açılır.
+
+Notlar: ücretsiz planda sunucu boşta uyur (ilk açılış ~1 dk sürer) ve ban dosyası yeniden başlatmada silinebilir. Docker kullanan başka bir hosting için `Dockerfile` da hazır.
+Hızlı alternatif: kendi PC'nde `npm start`, ardından `cloudflared tunnel --url http://localhost:3000` ile geçici internet adresi al.
+
+**En kolay yol:** `online.bat` (Windows) / `online.sh` (Mac/Linux) dosyasına çift tıkla. Sunucuyu açar ve internete açık bir adres verir; adresi arkadaşlarına gönder, oda kodunla katılsınlar. Ek program kurmak gerekmez (Windows 10/11'deki `ssh` kullanılır). Pencere açık kaldığı sürece oyun açıktır.

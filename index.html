@@ -97,6 +97,28 @@ h1{font-family:Creepster,Impact,"Arial Black",serif;font-weight:400;font-size:cl
 #ownPassIn{border-color:#ffd23f;color:#ffe9a0}
 #adm{position:absolute;right:16px;top:50px;font-size:12px;letter-spacing:.08em;text-align:right;color:#e0c060;text-shadow:0 0 4px #000;white-space:pre;line-height:1.5}
 #pLeave{display:none}body.mp #pLeave{display:block}
+#gold{position:absolute;left:50%;top:44px;transform:translateX(-50%);font-size:15px;letter-spacing:.12em;color:#ffd23f;background:rgba(0,0,0,.55);border:1px solid #6a5a20;padding:3px 14px;text-shadow:0 0 6px #000}
+#techHint{position:absolute;left:50%;top:76px;transform:translateX(-50%);font-size:13px;color:#7dff9c;background:rgba(0,30,10,.6);border:1px solid #2e8a4a;padding:3px 12px;text-align:center;max-width:86vw}
+#gainPop{position:absolute;left:50%;top:44%;transform:translateX(-50%);font-size:17px;color:#ffe9a0;text-shadow:0 0 6px #000;pointer-events:none}
+@keyframes gainup{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-40px)}}
+#hitm{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;pointer-events:none;border:2px solid #fff;transform:rotate(45deg);opacity:0}
+@keyframes hitm{0%{opacity:1;transform:rotate(45deg) scale(.6)}100%{opacity:0;transform:rotate(45deg) scale(1.5)}}
+#wbar{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none}
+#wbar button{pointer-events:auto;font:inherit;font-size:12px;letter-spacing:.06em;padding:7px 10px;background:rgba(10,14,13,.7);color:#cdd6d0;border:1px solid #4b5350}
+#wbar button.on{background:rgba(168,18,27,.78);border-color:#ff8a8a;color:#fff}
+#bossHud{position:absolute;left:50%;top:104px;transform:translateX(-50%);width:min(560px,86vw);text-align:center;pointer-events:none}
+#bossName{letter-spacing:.3em;color:#ff4a3a;font-size:14px;text-shadow:0 0 8px #000}
+.bossBar{height:14px;background:rgba(0,0,0,.65);border:1px solid #7a1a1a;margin:4px 0}
+.bossBar b{display:block;height:100%;width:100%;background:linear-gradient(#e03030,#8a1010)}
+#bossHpTxt{font-size:11px;color:#e0b0b0}
+#bossSub{font-size:15px;color:#ffd0a0;text-shadow:0 0 6px #000;margin-top:2px;min-height:1.2em}
+#bossBanner{position:absolute;left:50%;top:36%;transform:translateX(-50%);font-size:clamp(22px,4.4vw,48px);letter-spacing:.1em;text-align:center;text-shadow:0 0 14px #000,0 0 30px #000;max-width:92vw;pointer-events:none}
+.trow{border:1px solid #2a3432;border-left:3px solid #2a8aa8;padding:8px 10px;margin:8px 0 8px 12px;background:#080c0c}
+.trow.root{border-left-color:#7dff9c;margin-left:0}.trow.own{border-left-color:#e0c060}
+.trow .tn{color:#e6ece8;font-size:15px;letter-spacing:.1em}.trow .td{color:#8a938e;font-size:12px;margin:3px 0 6px;line-height:1.4}
+.tb{width:100%!important;margin:0!important;font-size:13px!important}.tb.free{border-color:#7dff9c;color:#7dff9c}.tb.poor{opacity:.45}
+#techGold{color:#ffd23f;text-align:center;letter-spacing:.15em;margin-bottom:6px}#techMsg{min-height:1.4em;text-align:center;font-size:13px;margin:6px 0}
+
 #acItems{background:#050808;border:1px solid #2a3432;padding:8px;font-size:11px;white-space:pre;overflow:auto;color:#cde;max-height:24vh;margin-bottom:8px}
 #scare{position:fixed;inset:0;z-index:95;background:#000;pointer-events:none}
 #scare canvas{width:100%;height:100%;display:block;animation:scj .07s infinite}
@@ -163,6 +185,9 @@ h1{font-family:Creepster,Impact,"Arial Black",serif;font-weight:400;font-size:cl
   <div class="kv"><span>Koşma (dayanıklılık harcar)</span><b>SHIFT</b></div>
   <div class="kv"><span>Çömelme (daha sessiz, daha az görünür)</span><b>C</b></div>
   <div class="kv"><span>Bulunan notlar ve ipuçları</span><b>TAB</b></div>
+  <div class="kv"><span>Silah kuşan (Teknoloji Ağacı): silah / kılıç / çekiç / çubuk / SAPAN</span><b>1 2 3 4 5</b></div>
+  <div class="kv"><span>Silahı bırak</span><b>0</b></div>
+  <div class="kv"><span>Saldır</span><b>SOL TIK</b></div>
   <div class="kv"><span>Fare kontrolünü bırak / duraklat</span><b>ESC</b></div>
   <div class="kv"><span>Kamera sisteminde kamera değiştir</span><b>A / D</b></div>
   <p style="margin:14px 0;font-size:13px;color:#8a938e;line-height:1.5">İpucu: Kulübenin kapısını kapat, canavarlar içeri giremesin. Ama bazıları kapıyı kırabilir. Koşmak ses çıkarır; el feneri seni uzaktan gösterir.</p>
@@ -181,6 +206,8 @@ h1{font-family:Creepster,Impact,"Arial Black",serif;font-weight:400;font-size:cl
   <input id="ownPassIn" class="hid" type="password" maxlength="64" placeholder="OWNER şifresi — Enter: onayla, Esc: iptal" autocomplete="off">
   <input id="chatIn" class="hid" maxlength="140" placeholder="Mesaj yaz, Enter ile gönder, Esc ile iptal" autocomplete="off">
   <div id="adm"></div>
+  <div id="gold" class="hid"></div><div id="techHint" class="hid">SAPAN ÜCRETSİZ: kulübenin batısındaki TEKNOLOJİ AĞACI'na git → E</div><div id="gainPop" class="hid"></div><div id="hitm" class="hid"></div><div id="wbar"></div>
+  <div id="bossHud" class="hid"><div id="bossName">DEV PALYAÇO</div><div id="bossBarWrap"><div class="bossBar"><b id="bossHp"></b></div><div id="bossHpTxt"></div></div><div id="bossSub"></div></div><div id="bossBanner" class="hid"></div>
   <div id="touch" class="hid">
     <div id="lookZone"></div>
     <div id="joyZone"><div id="joyBase"><div id="joyKnob"></div></div></div>
@@ -267,15 +294,295 @@ h1{font-family:Creepster,Impact,"Arial Black",serif;font-weight:400;font-size:cl
   <div class="row"><span style="color:#7fd6ff">STAFF (7)</span><input type="checkbox" id="acTStaff"></div>
   <div class="row"><span style="color:#b46bff">DEVELOPER (8)</span><input type="checkbox" id="acTDev"></div>
   <div class="row"><span style="color:#ffd23f">OWNER (9)</span><input type="checkbox" id="acTOwner"></div>
+  <div class="lt">BOSS SAVAŞI</div>
+  <div class="row"><span id="acBossInfo">…</span><button class="btn sm" id="acBossStart" style="width:auto;margin:0;display:inline-block">BOSS FIGHT BAŞLAT</button></div>
+  <div class="lt">ALTIN VER</div>
+  <div class="row"><select id="acGoldTarget"></select><input id="acGoldAmt" type="number" min="1" max="100000" value="500" style="width:110px"><button class="btn sm" id="acGoldGive" style="width:auto;margin:0;display:inline-block">ALTIN VER</button></div>
+  <div id="acGoldMsg" style="min-height:1.3em;font-size:13px;text-align:center"></div>
   <button class="btn" id="acClose">KAPAT</button>
 </div></div>
 
+<div id="techUI" class="modal hid" style="z-index:46"><div class="box"><h2>TEKNOLOJİ AĞACI</h2><div id="techGold"></div><div id="techList"></div><div id="techMsg"></div><button class="btn" id="techClose">KAPAT</button></div></div>
+
 <div id="scare" class="hid"><canvas id="scareC"></canvas></div>
 
-<div id="kicked" class="screen hid" style="z-index:70;background:rgba(0,0,0,.94)"><h1 id="kTitle">ODADAN ATILDIN</h1><div class="p" id="kText"></div><button class="btn" id="kBack">ANA MENÜ</button></div>
+<div id="kicked" class="screen hid" style="z-index:70;background:rgba(0,0,0,.94)"><h1 id="kTitle">ODADAN ATILDIN</h1><div class="p" id="kText"></div><div id="kUnban" class="hid" style="margin:10px 0 14px;text-align:center"><div class="p" style="margin-bottom:8px">Ban açma şifren varsa buraya yaz:</div><input id="kPass" type="password" autocomplete="off" maxlength="40" placeholder="ŞİFRE" style="padding:10px 12px;font:inherit;text-align:center;background:#111;color:#fff;border:1px solid #555;border-radius:6px;width:min(240px,70vw)"> <button class="btn" id="kUnbanGo" style="margin-top:8px">BANI AÇ</button><div id="kUnbanMsg" class="p" style="margin-top:8px;min-height:1.3em"></div></div><button class="btn" id="kBack">ANA MENÜ</button></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script>/* BOSS-CORE (public/boss-core.js ile aynı; tek dosyadan açılınca da çalışsın diye gömülü) */
+/* NÖBETÇİ — Boss çekirdeği (SUNUCU ve TEK OYUNCULU MOD AYNI KODU KULLANIR)
+ *
+ * Saf mantık: DOM / Three.js / ağ yok. Sunucu (Node) ve tarayıcı aynı dosyayı yükler.
+ *   Boss SABİT durur (Scary Baboon tarzı): kovalamaz. İki saldırısı var: YUMRUK (önce 1 sn kol havada, sonra vuruş) ve SES DALGASI.
+ *   - Teknoloji ağacındaki silahların değerleri (WEAPONS)
+ *   - Boss oturumu zaman çizelgesi: intro → portal → bekleme odası (60 sn) → savaş → bitiş
+ *   - Boss yapay zekâsı (Dev Palyaço): kovalama, darbe, yer ezme, hamle (charge) + yorgunluk
+ *   - Oyuncu saldırısının isabet hesabı (yakın dövüş / silah ışını)
+ * Koordinat kuralları: oyuncu ileri yönü = (-sin yaw, -cos yaw). Boss/canavar ileri yönü = (sin yaw, cos yaw).
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.BossCore = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ------------------------------------------------------------ silahlar (teknoloji ağacı)
+     Sıra, MADDİ DEĞERE göre: 1. SİLAH, 2. KILIÇ, 3. ÇEKİÇ, 4. ÇUBUK. SAPAN ücretsizdir (fiyat 0), ağacın ilk eşyasıdır, tuş 5. */
+  const WEAPONS = {
+    sling:  { id: 'sling',  slot: 5, name: 'SAPAN', price: 0,    dmg: 10, cd: 0.70, reach: 45, ranged: true,  desc: 'ÜCRETSİZ ilk silah. Menzilli ama yavaş ve zayıf.' },
+    gun:    { id: 'gun',    slot: 1, name: 'SİLAH', price: 1800, dmg: 28, cd: 0.22, reach: 70,  ranged: true,  desc: 'Menzilli. Hızlı ateş.' },
+    sword:  { id: 'sword',  slot: 2, name: 'KILIÇ', price: 900,  dmg: 40, cd: 0.45, reach: 3.6, ranged: false, desc: 'Hızlı yakın dövüş.' },
+    hammer: { id: 'hammer', slot: 3, name: 'ÇEKİÇ', price: 400,  dmg: 55, cd: 0.95, reach: 3.2, ranged: false, desc: 'Ağır, yavaş darbe.' },
+    stick:  { id: 'stick',  slot: 4, name: 'ÇUBUK', price: 100,  dmg: 12, cd: 0.30, reach: 2.8, ranged: false, desc: 'En ucuz, en zayıf.' }
+  };
+  const ORDER = ['sling', 'gun', 'sword', 'hammer', 'stick'];
+  const FREEZE_SECONDS = 4;        // normal canavarlar hasar alınca ölmez, bu kadar donar
+  const FREEZE_IMMUNE = 2;         // çözüldükten sonra tekrar donmama süresi (sürekli donma hilesini engeller)
+
+  /* ------------------------------------------------------------ dünya yerleşimi */
+  const ARENA_CX = 160;
+  const PORTAL = { x: 0, z: 3, r: 2.2 };               // Orta Plaza'da açılan portal
+  const TECH = { x: -9.5, z: 52.0, use: 5.0 };         // Teknoloji ağacı: güvenlik kulübesinin batısı
+  const ARENA = { cx: 160, cz: 0, half: 24, wall: 22, bossX: 160, bossZ: -12 };
+  const WAIT = { cx: 160, cz: -60, half: 7 };
+  const HOME = { x: -0.8, y: 0.15, z: 52.3 };
+
+  const TIMING = {
+    introWalk: 3.5, introSummon: 2.5, introEnter: 2.5,   // ~8.5 sn giriş animasyonu
+    portalMax: 120,       // portal açık kalır; kimse girmezse iptal
+    countdown: 60,        // İLK oyuncu girince başlayan bekleme odası süresi
+    spawnPause: 4,        // boss'un kükreme süresi (dokunulmaz)
+    punchWarn: 1.0,       // YUMRUK: kol havada TAM bekleme (bu sürede hasar YOK), sonra vuruş
+    punchStrike: 0.35,    // yumruğun inme animasyonu (hasar kontrolü bunun BAŞLANGICINDA, tek sefer)
+    punchRecover: 1.0,    // kol geri döner
+    waveWarn: 1.8,        // SES DALGASI: hazırlık/uyarı süresi (yön bu sırada kilitlenir)
+    idle: 1.3, idleRage: 0.8,   // saldırılar arası bekleme (boss %50 canın altında hızlanır)
+    tired: 2.6,           // ses dalgasından sonra nefes nefese (hasar ×1.5)
+    fightMax: 420,        // süre dolarsa boss kazanır
+    endDelay: 8,          // bittikten sonra eve dönüş
+    autoEvery: 1800       // otomatik başlatma: 30 dk
+  };
+  const BOSS = { hp1: 3000, hpPer: 2000, r: 2.6, h: 9, scale: 3.0, winGold: 500, damageGoldRate: 0.25 };
+  /* Saldırı alanları (dünya koordinatı, boss +z yönüne bakar; bossun SAĞI = dünya -x). Ayarlanabilir. */
+  const PUNCH = { width: 10, overlap: 1, depth: 16, back: 2, lag: 0.35 };       // lag: gecikme toleransı (öldürücü alan görselden bu kadar içeride)
+  const WAVE = { speed: 14, range: 40, halfW: 2.4, thick: 2.2, maxAngle: 1.1, lag: 0.35 };
+  const PILLARS = [ { x: ARENA_CX - 9, z: 0, r: 1.5 }, { x: ARENA_CX + 9, z: 0, r: 1.5 }, { x: ARENA_CX - 15, z: 7, r: 1.5 }, { x: ARENA_CX + 15, z: 7, r: 1.5 } ];
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const rectOf = z => ({ x1: z.cx - z.half - 1.5, x2: z.cx + z.half + 1.5, z1: z.cz - z.half - 1.5, z2: z.cz + z.half + 1.5 });
+  const ZONE_RECT = { arena: rectOf(ARENA), wait: rectOf(WAIT) };
+  function zoneOf(x, z) {
+    for (const k of ['arena', 'wait']) { const r = ZONE_RECT[k]; if (x >= r.x1 && x <= r.x2 && z >= r.z1 && z <= r.z2) return k; }
+    return 'park';
+  }
+  const inPortal = (x, z) => Math.hypot(x - PORTAL.x, z - PORTAL.z) <= PORTAL.r + 0.3;
+  const nearTech = (x, z) => Math.hypot(x - TECH.x, z - TECH.z) <= TECH.use;
+  const waitSpawn = i => ({ x: WAIT.cx + ((i % 4) - 1.5) * 2.4, y: 0, z: WAIT.cz + (Math.floor(i / 4) - 0.5) * 2.4, yaw: 0 });
+  const arenaSpawn = (i, n) => ({ x: ARENA.cx + (i - (n - 1) / 2) * 3.0, y: 0, z: ARENA.cz + 13, yaw: 0 });
+  const homeSpawn = i => ({ x: -3 + (i % 5) * 1.5, y: 0, z: 46.6 - Math.floor(i / 5) * 1.6, yaw: 0 });
+
+  /* ------------------------------------------------------------ oturum */
+  function createSession(opts) {
+    opts = opts || {};
+    const T = Object.assign({}, TIMING, opts.timing || {});
+    return {
+      id: opts.id || 1, T, phase: 'intro', t: 0, result: null, done: false,
+      portal: 0, countdown: null, part: new Set(), entered: new Set(), q: [], homed: false,
+      next: (opts.script || []).slice(), rand: opts.rand || Math.random,
+      boss: { x: 0, z: -24, yaw: 0, st: 'walk', stT: 0, hp: 0, maxHp: 0, r: BOSS.r, h: BOSS.h, vis: true,
+              side: 'R', wd: 0, wf: 0, wl: 0, hit: new Set(), last: [], dmgBy: {} }
+    };
+  }
+
+  function turn(b, want, maxStep) {
+    let d = Math.atan2(Math.sin(want - b.yaw), Math.cos(want - b.yaw));
+    b.yaw += clamp(d, -maxStep, maxStep);
+  }
+  const isRage = b => b.hp > 0 && b.hp < b.maxHp * 0.5;
+
+  /* Oyuncular: [{id,x,z,hp,alive,zone}] → olaylar (events) */
+  function tick(S, dt, players) {
+    const ev = S.q.splice(0, S.q.length); const T = S.T; const b = S.boss;
+    if (S.done) return ev;
+    S.t += dt;
+
+    if (S.phase === 'intro') {
+      if (S.t - dt <= 0) ev.push({ t: 'announce', k: 'intro' });
+      const w = T.introWalk, s = T.introSummon, e = T.introEnter;
+      if (S.t < w) { b.st = 'walk'; b.yaw = 0; b.z = -24 + (S.t / w) * 20; }
+      else if (S.t < w + s) { b.st = 'summon'; b.z = -4; b.yaw = 0; S.portal = clamp((S.t - w) / s, 0, 1); }
+      else if (S.t < w + s + e) { b.st = 'enter'; S.portal = 1; b.yaw = 0; b.z = -4 + ((S.t - w - s) / e) * (PORTAL.z + 0.5 + 4); }
+      else { b.vis = false; b.st = 'gone'; S.portal = 1; S.phase = 'portal'; S.t = 0; ev.push({ t: 'phase', phase: 'portal' }); }
+    }
+    else if (S.phase === 'portal' || S.phase === 'wait') {
+      for (const p of players) {
+        if (p.zone === 'park' && p.alive !== false && inPortal(p.x, p.z) && !S.entered.has(p.id)) {
+          S.entered.add(p.id); ev.push({ t: 'enter', id: p.id, spawn: waitSpawn(S.entered.size - 1) });
+          if (S.phase === 'portal') { S.phase = 'wait'; S.t = 0; ev.push({ t: 'phase', phase: 'wait' }); }
+        }
+      }
+      if (S.phase === 'portal') {
+        S.countdown = Math.max(0, T.portalMax - S.t);
+        if (S.t >= T.portalMax) { S.result = 'cancel'; S.phase = 'end'; S.t = 0; S.done = true; S.portal = 0; ev.push({ t: 'end', result: 'cancel' }); }
+      } else {
+        S.countdown = Math.max(0, T.countdown - S.t);
+        if (S.t >= T.countdown) {
+          const ids = players.filter(p => p.zone === 'wait').map(p => p.id);
+          S.portal = 0;
+          if (!ids.length) { S.result = 'cancel'; S.phase = 'end'; S.t = 0; S.done = true; ev.push({ t: 'end', result: 'cancel' }); }
+          else {
+            S.part = new Set(ids); const n = ids.length;
+            b.maxHp = BOSS.hp1 + BOSS.hpPer * (n - 1); b.hp = b.maxHp; b.x = ARENA.bossX; b.z = ARENA.bossZ; b.yaw = 0;
+            b.vis = true; b.st = 'spawn'; b.stT = 0; b.hit = new Set(); b.last = []; b.dmgBy = {};
+            S.phase = 'fight'; S.t = 0; S.countdown = null;
+            ev.push({ t: 'phase', phase: 'fight' }); ev.push({ t: 'toArena', moves: ids.map((id, i) => Object.assign({ id }, arenaSpawn(i, n))) });
+            ev.push({ t: 'announce', k: 'fight' });
+          }
+        }
+      }
+    }
+    else if (S.phase === 'fight') {
+      const alive = players.filter(p => p.zone === 'arena' && p.alive !== false && S.part.has(p.id));
+      if (b.hp > 0) bossAI(S, dt, alive, ev);
+      if (b.hp <= 0) { /* applyDamage zaten sonucu ayarladı */ }
+      else if (!alive.length) { finish(S, 'lose', ev); }
+      else if (S.t >= T.fightMax) { finish(S, 'lose', ev); }
+    }
+    else if (S.phase === 'end') {
+      if (!S.homed && S.t >= (S.result === 'cancel' ? 0 : T.endDelay)) {
+        S.homed = true; S.done = true;
+        const ids = players.filter(p => p.zone !== 'park').map(p => p.id);
+        ev.push({ t: 'home', moves: ids.map((id, i) => Object.assign({ id }, homeSpawn(i))) });
+      }
+    }
+    return ev;
+  }
+
+  function finish(S, result, ev) {
+    if (S.phase === 'end') return;
+    S.result = result; S.phase = 'end'; S.t = 0; (ev || S.q).push({ t: 'end', result });
+    if (result === 'win') (ev || S.q).push({ t: 'rewards', gold: rewards(S) });
+  }
+  function rewards(S) { const g = {}; for (const id of S.part) g[id] = BOSS.winGold; return g; }
+
+  /* ------------------------------------------------------------ saldırı geometrisi (sunucu + istemci ORTAK) */
+  /* yumruk alanı (dünya dikdörtgeni). side: 'R' = bossun sağı (dünya -x), 'L' = solu (+x). */
+  function punchZone(side) {
+    const bx = ARENA.bossX, bz = ARENA.bossZ;
+    return side === 'R' ? { x1: bx - PUNCH.width, x2: bx + PUNCH.overlap, z1: bz - PUNCH.back, z2: bz + PUNCH.depth }
+                        : { x1: bx - PUNCH.overlap, x2: bx + PUNCH.width, z1: bz - PUNCH.back, z2: bz + PUNCH.depth };
+  }
+  function inPunch(side, x, z, lag) {
+    const r = punchZone(side), m = lag === undefined ? PUNCH.lag : lag;
+    return x > r.x1 + m && x < r.x2 - m && z > r.z1 + m && z < r.z2 - m;
+  }
+  /* ses dalgası: yön açısı d (0 = +z, + = +x). Işın duvara ya da sütuna çarpınca kısalır. */
+  function waveGeom(d) {
+    const ux = Math.sin(d), uz = Math.cos(d), ox = ARENA.bossX + ux * BOSS.r, oz = ARENA.bossZ + uz * BOSS.r;
+    let len = WAVE.range;
+    const wx = ox - ARENA.cx, wz = oz - ARENA.cz, bq = wx * ux + wz * uz, Rw = ARENA.wall - 0.8;
+    const disc = bq * bq - (wx * wx + wz * wz - Rw * Rw);
+    if (disc > 0) len = Math.min(len, -bq + Math.sqrt(disc));
+    for (const P of PILLARS) {
+      const px = P.x - ox, pz = P.z - oz, sp = px * ux + pz * uz, perp = Math.abs(px * uz - pz * ux);
+      if (sp > 0 && perp < P.r + WAVE.halfW) len = Math.min(len, Math.max(0, sp - P.r));
+    }
+    return { ox, oz, ux, uz, len: Math.max(0, len) };
+  }
+
+  function bossAI(S, dt, alive, ev) {
+    const b = S.boss, T = S.T; b.stT += dt;
+    b.x = ARENA.bossX; b.z = ARENA.bossZ; b.yaw = 0;               // SABİT: boss asla yer değiştirmez
+    const rage = isRage(b), EPS = 1e-6;
+    const lethal = (p, k) => ev.push({ t: 'hurt', id: p.id, dmg: 9999, k });
+    if (b.st === 'spawn') { if (b.stT >= T.spawnPause) { b.st = 'idle'; b.stT = 0; } return; }
+    if (b.st === 'idle') {
+      if (b.stT < (rage ? T.idleRage : T.idle)) return;
+      let pick = S.next.length ? S.next.shift() : null;
+      if (!pick) {
+        const L = b.last, banned = L.length >= 2 && L[0] === L[1] ? L[0] : null;
+        const pool = ['L', 'R', 'wave', 'wave'].filter(x => x !== banned);   // dalga biraz daha sık
+        pick = pool[Math.floor(S.rand() * pool.length) % pool.length];
+      }
+      b.last.unshift(pick); b.last.length = Math.min(b.last.length, 2);
+      b.stT = 0; b.hit = new Set();
+      if (pick === 'L' || pick === 'R') { b.side = pick; b.st = 'punchWind'; ev.push({ t: 'fx', k: 'punchWind', side: pick }); }
+      else {
+        let aim = alive.length ? alive[Math.floor(S.rand() * alive.length) % alive.length] : null;
+        let d = aim ? Math.atan2(aim.x - b.x, aim.z - b.z) : 0;
+        b.wd = clamp(d, -WAVE.maxAngle, WAVE.maxAngle); b.wf = 0; b.wl = waveGeom(b.wd).len;
+        b.st = 'waveWind'; ev.push({ t: 'fx', k: 'waveWind', d: b.wd, len: b.wl });
+      }
+      return;
+    }
+    if (b.st === 'punchWind') {                                   // kol havada: hasar YOK
+      if (b.stT >= T.punchWarn - EPS) {
+        b.st = 'punch'; b.stT = 0; ev.push({ t: 'fx', k: 'punch', side: b.side });
+        for (const p of alive) if (!b.hit.has(p.id) && inPunch(b.side, p.x, p.z)) { b.hit.add(p.id); lethal(p, 'punch'); }   // tek sefer, vuruş anında
+      }
+      return;
+    }
+    if (b.st === 'punch') { if (b.stT >= T.punchStrike) { b.st = 'recover'; b.stT = 0; } return; }
+    if (b.st === 'recover') { if (b.stT >= T.punchRecover) { b.st = 'idle'; b.stT = 0; } return; }
+    if (b.st === 'waveWind') {
+      if (b.stT >= T.waveWarn - EPS) { b.st = 'wave'; b.stT = 0; b.wf = 0; ev.push({ t: 'fx', k: 'wave', d: b.wd, len: b.wl }); }
+      return;
+    }
+    if (b.st === 'wave') {
+      const G = waveGeom(b.wd), prev = b.wf; b.wf = Math.min(b.wl, prev + WAVE.speed * dt);
+      for (const p of alive) {
+        if (b.hit.has(p.id)) continue;
+        const px = p.x - G.ox, pz = p.z - G.oz, s = px * G.ux + pz * G.uz, perp = Math.abs(px * G.uz - pz * G.ux);
+        if (s >= Math.max(0, prev - WAVE.thick) && s <= b.wf && perp <= WAVE.halfW - WAVE.lag) { b.hit.add(p.id); lethal(p, 'wave'); }
+      }
+      if (b.wf >= b.wl) { b.st = 'tired'; b.stT = 0; ev.push({ t: 'fx', k: 'tired' }); }
+      return;
+    }
+    if (b.st === 'tired') { if (b.stT >= T.tired) { b.st = 'idle'; b.stT = 0; } }
+  }
+
+  /* ------------------------------------------------------------ oyuncu saldırısı */
+  function attackResult(S, p, wid, yaw, pitch) {
+    const W = WEAPONS[wid]; if (!W || !S || S.phase !== 'fight') return null;
+    const b = S.boss; if (b.hp <= 0 || b.st === 'spawn' || b.st === 'dead') return { hit: false };
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw), bx = b.x - p.x, bz = b.z - p.z, d = Math.hypot(bx, bz);
+    const mul = b.st === 'tired' ? 1.5 : 1;
+    if (!W.ranged) {
+      const gap = d - b.r; if (gap > W.reach) return { hit: false };
+      if (gap > 0.3 && d > 1e-3 && (fx * bx + fz * bz) / d < 0.5) return { hit: false };
+      return { hit: true, dmg: Math.round(W.dmg * mul), w: wid };
+    }
+    const cp = Math.cos(pitch), hx = fx * cp, hz = fz * cp, hy = Math.sin(pitch), hl = Math.hypot(hx, hz);
+    if (hl < 1e-6) return { hit: false };
+    const ux = hx / hl, uz = hz / hl, s = bx * ux + bz * uz; if (s <= 0) return { hit: false };
+    const perp = Math.abs(bx * uz - bz * ux); if (perp > b.r * 0.95) return { hit: false };
+    const s0 = s - Math.sqrt(Math.max(0, b.r * b.r - perp * perp)); if (s0 > W.reach) return { hit: false };
+    const y = 1.6 + (hy / hl) * Math.max(0, s0); if (y < 0 || y > b.h) return { hit: false };
+    return { hit: true, dmg: Math.round(W.dmg * mul), w: wid };
+  }
+
+  /* hasarı uygular: altın = hasar × oran. Boss ölürse oturumu 'win' ile bitirir. */
+  function applyDamage(S, id, dmg) {
+    const b = S.boss; if (S.phase !== 'fight' || b.hp <= 0) return { gold: 0, killed: false };
+    dmg = Math.min(dmg, b.hp); b.hp -= dmg; b.dmgBy[id] = (b.dmgBy[id] || 0) + dmg;
+    const gold = Math.round(dmg * BOSS.damageGoldRate); let killed = false;
+    if (b.hp <= 0) { b.hp = 0; b.st = 'dead'; b.stT = 0; killed = true; finish(S, 'win'); }
+    return { gold, killed };
+  }
+
+  function snapshot(S) {
+    const b = S.boss, r2 = v => Math.round(v * 100) / 100;
+    return { id: S.id, ph: S.phase, t: r2(S.t), cd: S.countdown === null ? null : r2(S.countdown), pt: r2(S.portal), res: S.result,
+             b: { x: r2(b.x), z: r2(b.z), yaw: r2(b.yaw), st: b.st, sT: r2(b.stT), hp: Math.round(b.hp), mx: Math.round(b.maxHp), v: b.vis ? 1 : 0,
+               sd: b.side, wd: r2(b.wd), wf: r2(b.wf), wl: r2(b.wl) } };
+  }
+
+  return { WEAPONS, ORDER, FREEZE_SECONDS, FREEZE_IMMUNE, PORTAL, TECH, ARENA, WAIT, HOME, TIMING, BOSS, ZONE_RECT, PUNCH, WAVE, PILLARS, punchZone, inPunch, waveGeom,
+           zoneOf, inPortal, nearTech, waitSpawn, arenaSpawn, homeSpawn, createSession, tick, attackResult, applyDamage, snapshot, rewards };
+});
+
+</script>
 <script>
 (function(){
 function fatal(m){var e=document.getElementById('err');e.classList.remove('hid');e.textContent=m;}
@@ -301,7 +608,7 @@ let chatOpen=false;
 let settings={vol:.7,sens:1,fov:75,bright:1.1,quality:'high',bob:true};
 try{Object.assign(settings,JSON.parse(localStorage.getItem(LS_SET)||'{}'));}catch(e){}
 const saveSet=()=>{try{localStorage.setItem(LS_SET,JSON.stringify(settings));}catch(e){}};
-function defProg(){return{light:false,taken:{},fuseTaken:[false,false,false],fuseIn:[false,false,false],outage:false,power:true,gateTunnel:false,notes:[],lockerOpen:false,key:false,wsOpen:false,card:false,lever:false,panelCard:false,panelLever:false,sys:false,exit:false,bt:100,camUsed:false,t:0};}
+function defProg(){return{light:false,taken:{},fuseTaken:[false,false,false],fuseIn:[false,false,false],outage:false,power:true,gateTunnel:false,notes:[],lockerOpen:false,key:false,wsOpen:false,card:false,lever:false,panelCard:false,panelLever:false,sys:false,exit:false,bt:100,camUsed:false,t:0,tech:{gold:0,w:[]}};}
 let progress=defProg(), playTime=0, deaths=0;
 function loadSave(){try{const s=JSON.parse(localStorage.getItem(LS_SAVE));if(s&&s.v===1){progress=Object.assign(defProg(),s.p);playTime=progress.t||0;return true;}}catch(e){}return false;}
 function saveGame(){if(MPS.active)return;try{progress.t=playTime;localStorage.setItem(LS_SAVE,JSON.stringify({v:1,p:progress}));}catch(e){}}
@@ -729,6 +1036,66 @@ function lamp(x,z,o){ o=o||{}; bx(x,2.2,z,0.16,4.4,0.16,0x2a2e30); bx(x+(x>0?-0.
   for(let x=-54;x<=54;x+=16){ if(Math.abs(x)<10)continue; lamp(x,(x>0?-4.8:4.8),{flick:Math.random()<0.3,dead:Math.random()<0.14}); }
   lamp(-14,38.5,{flick:true}); lamp(14,38.5); lamp(28,-30,{dead:true}); lamp(-30,-10,{flick:true}); lamp(20,14); lamp(-42,-38,{flick:true}); }
 
+/* ============ 9b. TEKNOLOJİ AĞACI, BOSS ARENASI, BEKLEME ODASI (statik dünya) ============ */
+const BCORE=window.BossCore;
+if(!BCORE)throw new Error('boss-core.js yüklenemedi (public/boss-core.js)');
+const TK=BCORE.TECH, AR=BCORE.ARENA, WT=BCORE.WAIT;
+{
+  /* --- Teknoloji Ağacı: güvenlik kulübesinin batısı (TK.x, TK.z) --- */
+  const x=TK.x,z=TK.z;
+  bx(x,0.04,z,5.4,0.08,5.0,0x1c2428); bx(x,0.09,z,4.6,0.04,4.2,0x232d33);
+  for(const s of [-1,1])for(const t of [-1,1])bxG(x+s*2.35,0.12,z+t*2.05,0.2,0.06,0.2,0x2ad4ff);   // köşe ışıkları
+  /* gövde (metal ağaç) */
+  cyl(x,1.7,z+1.3,0.2,0.3,3.4,0x2e3a40,10); cyl(x,0.2,z+1.3,0.55,0.62,0.4,0x222c31,12);
+  for(let i=0;i<6;i++)cyl(x,0.7+i*0.5,z+1.3,0.24,0.24,0.05,0x2ad4ff,10,GL);
+  colBox(x,z+1.3,1.1,1.1);
+  /* 5 dal: sapan, silah, kılıç, çekiç, çubuk (modeller 12c'de eklenir) */
+  const tips=[[-1.9,3.0],[-1.0,3.55],[0,3.85],[1.0,3.55],[1.9,3.0]];
+  tips.forEach((t,i)=>{ beam(x,2.4+i*0.18,z+1.3,x+t[0],t[1],z+1.0,0.07,0x2e3a40); bxG(x+t[0],t[1]-0.35,z+1.0,0.5,0.04,0.5,i===0?0x7dff9c:0x2ad4ff); });
+  /* terminal */
+  bx(x,0.55,z-1.1,1.5,1.1,0.7,0x1a2226); bx(x,1.2,z-1.2,1.5,0.5,0.1,0x1a2226,0,-0.5);
+  bx(x,1.2,z-1.27,1.3,0.4,0.03,0x1a8aa8,0,-0.5,0,GL);
+  colBox(x,z-1.1,1.6,0.8);
+  signMesh('TEKNOLOJİ AĞACI','#4ae0ff',3.4,0.8,x,4.55,z+1.0,Math.PI);
+  signMesh('ÜCRETSİZ SAPAN','#7dff9c',2.4,0.5,x,0.3+1.75,z-1.55,Math.PI,true);
+}
+const BO={ /* arena ve bekleme odası yardımcı değerleri */ floorY:0 };
+{
+  /* --- BOSS ARENASI (160,0): yuvarlak taş zemin, 40 parçalı duvar, 4 sütun --- */
+  const cx=AR.cx,cz=AR.cz,R=22.5;
+  cyl(cx,0.03,cz,23.5,23.5,0.06,0x221a1e,48); cyl(cx,0.07,cz,19.6,19.6,0.04,0x2b2024,48);
+  for(let i=0;i<48;i++){ const a=i/48*Math.PI*2; bxG(cx+Math.sin(a)*20.4,0.1,cz+Math.cos(a)*20.4,1.5,0.04,0.28,0xb01820,a); }
+  for(let i=0;i<40;i++){ const a=i/40*Math.PI*2, px=cx+Math.sin(a)*R, pz=cz+Math.cos(a)*R;
+    bx(px,4.5,pz,3.75,9,0.9,0x2a2024,a); bxG(px,8.8,pz,3.7,0.18,0.95,0xa01418,a);
+    if(i%4===0){ bx(px,4.5,pz,0.7,9.4,1.3,0x1a1216,a); } }
+  /* sütunlar: ses dalgasını keser. Çarpışma kutusu core'daki yarıçapla uyumlu. */
+  for(const P of BCORE.PILLARS){ cyl(P.x,3,P.z,P.r,P.r*1.12,6,0x4a3a40,16); cyl(P.x,6.15,P.z,P.r*1.25,P.r*1.25,0.3,0x2a2024,16); cyl(P.x,0.6,P.z,P.r*1.18,P.r*1.18,0.12,0xd02a2a,16,GL); cyl(P.x,5.6,P.z,P.r*1.14,P.r*1.14,0.1,0xd02a2a,16,GL); colBox(P.x,P.z,2.4,2.4); }
+  /* boss gövde çarpışması (oyuncular içine girmesin) */
+  colBox(AR.bossX,AR.bossZ,4.4,4.4);
+  /* boss platformu */
+  cyl(AR.bossX,0.14,AR.bossZ,5.4,5.6,0.2,0x15100f,24); cyl(AR.bossX,0.26,AR.bossZ,5.0,5.0,0.03,0xc01820,24,GL);
+}
+{
+  /* --- BEKLEME ODASI (160,-60): 14×14, 4 duvar, tavan, bank, ışıklı çizgiler --- */
+  const cx=WT.cx,cz=WT.cz,h=WT.half;
+  bx(cx,0.05,cz,h*2+0.6,0.1,h*2+0.6,0x1b2328); bx(cx,0.11,cz,h*2-1,0.02,h*2-1,0x222c32);
+  const wc=0x2c3840;
+  bx(cx,2.2,cz-h-0.2,h*2+0.8,4.4,0.4,wc); bx(cx,2.2,cz+h+0.2,h*2+0.8,4.4,0.4,wc); bx(cx-h-0.2,2.2,cz,0.4,4.4,h*2+0.8,wc); bx(cx+h+0.2,2.2,cz,0.4,4.4,h*2+0.8,wc);
+  bx(cx,4.5,cz,h*2+0.8,0.25,h*2+0.8,0x1a2126);
+  for(const z2 of [-1,1])bxG(cx,3.6,cz+z2*(h-0.05),h*2-0.6,0.12,0.06,0x2ad4ff);
+  for(const x2 of [-1,1])bxG(cx+x2*(h-0.05),3.6,cz,0.06,0.12,h*2-0.6,0x2ad4ff);
+  bx(cx,0.3,cz+h-0.9,6,0.1,0.8,0x3a2c20); bx(cx,0.12,cz+h-0.9,5.6,0.24,0.5,0x241a12);      // bank (güney)
+  signMesh('BEKLEME ODASI','#ffd23f',3.6,0.7,cx,3.15,cz+h-0.02,Math.PI);
+  signMesh('SAVAŞ BAŞLAYINCA ARENAYA ALINACAKSIN','#7dff9c',5.2,0.5,cx-h+0.1,2.4,cz,Math.PI/2);
+}
+{
+  /* --- PERSONEL ODASI: "BOSS BAŞLAT" büyük kırmızı düğme (batı duvarı, rafın güneyi) --- */
+  bx(-3.3,1.4,55.95,0.08,1.0,0.72,0x161c20); bx(-3.27,1.4,55.95,0.04,0.9,0.62,0x20282d);
+  bxG(-3.2,1.4,55.95,0.1,0.36,0.36,0xff2a20);
+  for(const dz of [-0.3,0.3])for(const dy of [-0.45,0.45])bxG(-3.25,1.4+dy,55.95+dz,0.04,0.05,0.05,0xffcc00);
+  signMesh('BOSS BAŞLAT','#ff4a3a',1.0,0.26,-3.24,2.05,55.95,Math.PI/2);
+}
+
 /* ============ 10. BİRLEŞTİRME ============ */
 function finalize(b,mat,shadow){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(b.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(b.col,3)); g.setIndex(new THREE.BufferAttribute(new Uint32Array(b.idx),1));
   const m=new THREE.Mesh(g,mat); m.castShadow=shadow; m.receiveShadow=shadow; m.frustumCulled=false; scene.add(m); return m; }
@@ -837,7 +1204,7 @@ addInter({x:4.4,y:1.3,z:-62.3,r:2.8,on:()=>!progress.exit,label:()=>progress.sys
 const HAM_TYPES=['kick','ban','jumpscare'];
 const held={kick:buildHammer('kick'),ban:buildHammer('ban'),jumpscare:buildHammer('jumpscare')};
 for(const t in held){ const hm=held[t]; hm.position.set(0.34,-0.36,-0.58); hm.rotation.set(-0.45,0.3,-0.35); hm.visible=false; cam.add(hm); }
-function setEquipped(t){ MPS.equipped=t||null; for(const k of HAM_TYPES)held[k].visible=(t===k); }
+function setEquipped(t){ if(t&&curW)unequipWeapon(); MPS.equipped=t||null; for(const k of HAM_TYPES)held[k].visible=(t===k); }
 const HAM_NAME={kick:'KICK HAMMER',ban:'BAN HAMMER',jumpscare:'JUMPSCARE HAMMER'};
 function adminOK(){ return !MPS.active||MPS.admin; }
 function inStaffLocal(){ return player.x>SR.x1&&player.x<SR.x2&&player.z>SR.z1&&player.z<SR.z2; }
@@ -888,7 +1255,7 @@ function drawItemMap(){
 }
 let acMapT=0;
 function openAdminConsole(){
-  const open_=arch=>{ $('acArch').textContent=archiveText(arch); syncAC(); drawItemMap(); show('adminCon'); state='modal'; modalKind='admin'; try{document.exitPointerLock();}catch(e){} };
+  const open_=arch=>{ $('acArch').textContent=archiveText(arch); syncAC(); fillGoldTargets(); nextInV=null; nextInT=0; $('acGoldMsg').textContent=''; drawItemMap(); show('adminCon'); state='modal'; modalKind='admin'; try{document.exitPointerLock();}catch(e){} };
   if(MPS.active){
     if(!MPS.net)return;
     MPS.net.console(r=>{ if(r&&r.ok)open_(r.archive); else { SFX.err(); msg((r&&r.error)||'Erişim reddedildi.',4); } });
@@ -908,7 +1275,7 @@ function toggleFlag(name,val){
 function pickupHammer(type){
   if(!MPS.active){ SFX.err(); msg('Çekiçler yalnızca çok oyunculu modda çalışır (tek oyunculu modda hedef oyuncu yok).',4.5); return; }
   if(!MPS.admin){ SFX.err(); msg('Çekiçleri yalnızca yönetici alabilir (Personel Odası şifresini gir).',3); return; }
-  MPS.net.pickup(type,r=>{ if(r&&r.ok){ MPS.owned[type]=true; setEquipped(type); SFX.pickup(); msg(HAM_NAME[type]+' alındı.  1: Kick • 2: Ban • 3: Jumpscare • 0: Bırak • Tık: vur',5); } else { SFX.err(); msg((r&&r.error)||'Alınamadı.',3); } });
+  MPS.net.pickup(type,r=>{ if(r&&r.ok){ MPS.owned[type]=true; setEquipped(type); SFX.pickup(); msg(HAM_NAME[type]+' alındı.  J: Kick • K: Ban • L: Jumpscare • 0: Bırak • Tık: vur',5); } else { SFX.err(); msg((r&&r.error)||'Alınamadı.',3); } });
 }
 function equipHammer(t){
   if(!MPS.active){ if(t)msg('Çekiçler yalnızca çok oyunculu modda ve oyun sahibi için çalışır.',3.5); return; }
@@ -935,7 +1302,7 @@ function adminKey(e){
   if(!MPS.admin||e.repeat)return false;
   switch(e.code){
     case 'Digit7': toggleTag('staff'); return true; case 'Digit8': toggleTag('dev'); return true; case 'Digit9': toggleTag('owner'); return true; case 'KeyG': toggleFlag('fly'); return true; case 'KeyN': toggleFlag('noclip'); return true; case 'KeyI': toggleFlag('god'); return true;
-    case 'Digit1': equipHammer('kick'); return true; case 'Digit2': equipHammer('ban'); return true; case 'Digit3': equipHammer('jumpscare'); return true; case 'Digit0': equipHammer(null); return true;
+    case 'KeyJ': equipHammer('kick'); return true; case 'KeyK': equipHammer('ban'); return true; case 'KeyL': equipHammer('jumpscare'); return true;
   }
   return false;
 }
@@ -1026,9 +1393,9 @@ function updateStaff(dt){
   for(const t of HAM_TYPES){ held[t].rotation.set(-0.45-sw*1.5,0.3,-0.35); held[t].position.z=-0.58-sw*0.15; }
   admT-=dt; if(admT<=0){ admT=0.25;
     const a=$('adm');
-    if(MPS.admin){ const l=['YÖNETİCİ','FLY(G):'+(MPS.fly?'AÇIK':'-')+'  NOCLIP(N):'+(MPS.noclip?'AÇIK':'-')+'  INVINCIBLE(I):'+(MPS.god?'AÇIK':'-'),'ETİKET: STAFF(7):'+(MPS.tags.staff?'AÇIK':'-')+'  DEV(8):'+(MPS.tags.dev?'AÇIK':'-')+'  OWNER(9):'+(MPS.tags.owner?'AÇIK':'-')]; if(MPS.active)l.push('ÇEKİÇ: '+(MPS.equipped?MPS.equipped.toUpperCase():'-')+'   [1]Kick [2]Ban [3]Jumpscare [0]Bırak'); a.textContent=l.join('\n'); } else a.textContent='';
+    if(MPS.admin){ const l=['YÖNETİCİ','FLY(G):'+(MPS.fly?'AÇIK':'-')+'  NOCLIP(N):'+(MPS.noclip?'AÇIK':'-')+'  INVINCIBLE(I):'+(MPS.god?'AÇIK':'-'),'ETİKET: STAFF(7):'+(MPS.tags.staff?'AÇIK':'-')+'  DEV(8):'+(MPS.tags.dev?'AÇIK':'-')+'  OWNER(9):'+(MPS.tags.owner?'AÇIK':'-')]; if(MPS.active)l.push('ÇEKİÇ: '+(MPS.equipped?MPS.equipped.toUpperCase():'-')+'   [J]Kick [K]Ban [L]Jumpscare [0]Bırak'); a.textContent=l.join('\n'); } else a.textContent='';
     if(IS_TOUCH){ const ta=$('tAdm'); ta.classList.toggle('hid',!MPS.admin); if(MPS.admin){ const hm={aKick:'kick',aBan:'ban',aScare:'jumpscare'}; for(const id in hm){ const b=$(id); b.classList.toggle('on',MPS.equipped===hm[id]); b.classList.toggle('dim',!MPS.owned[hm[id]]); b.classList.toggle('hid',!MPS.active); } $('aDrop').classList.toggle('hid',!MPS.active||!MPS.equipped); $('aFly').classList.toggle('on',!!MPS.fly); $('aNoclip').classList.toggle('on',!!MPS.noclip); $('aGod').classList.toggle('on',!!MPS.god); $('aTStaff').classList.toggle('on',!!MPS.tags.staff); $('aTDev').classList.toggle('on',!!MPS.tags.dev); $('aTOwner').classList.toggle('on',!!MPS.tags.owner); } }
-    $('tHit').classList.toggle('hid',!MPS.equipped); $('tUp').classList.toggle('hid',!MPS.fly); $('tDn').classList.toggle('hid',!MPS.fly); $('tChat').classList.toggle('hid',!MPS.active); }
+    $('tUp').classList.toggle('hid',!MPS.fly); $('tDn').classList.toggle('hid',!MPS.fly); $('tChat').classList.toggle('hid',!MPS.active); }
 }
 /* etkileşim noktaları */
 addInter({x:3.8,y:1.35,z:56.85,r:2.6,on:()=>!staffDoor.open,label:()=>'E: Personel Odası şifre paneli',act:openStaffKeypad});
@@ -1046,6 +1413,358 @@ for(const [k,nm,tk] of [['tagStaff','STAFF ETİKETİ','staff'],['tagDev','DEVELO
     label:()=>'E: '+nm+(MPS.tags[tk]?' — AÇIK (kapat)':' — KAPALI (aç)')+((MPS.active&&!MPS.admin)?'  [yalnızca yönetici]':''),act:()=>{ SFX.click(); toggleTag(tk); }});
 }
 
+/* ============ 12c. TEKNOLOJİ AĞACI, SİLAHLAR, ALTIN, BOSS SAVAŞI (istemci) ============ */
+/* Sunucu/tek oyunculu ortak mantık: public/boss-core.js. Çok oyunculuda altın, satın alma, hasar ve ölüm SUNUCUDA hesaplanır;
+   burada yalnızca istek gönderilir ve sunucunun cevabı gösterilir. Tek oyunculuda aynı çekirdek yerelde çalışır. */
+const mpw={gold:0,w:[]};
+const TW=()=>MPS.active?mpw:(progress.tech||(progress.tech={gold:0,w:[]}));
+const owns=id=>TW().w.includes(id);
+const BOSSC={zone:'park',snap:null,newSnap:false,st:'',sT:0,wf:0,down:false,flash:0,hpShow:1,hint:0,lastHp:-1,ended:0};
+const SPB={S:null,nextT:BCORE.TIMING.autoEvery,warned:0};
+let curW=null,wCd=0,wAnim=0,touchHit=false,techOpen=false;
+
+/* ---------- silah modelleri ---------- */
+const WMAT=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:e||0});
+const _mt=new THREE.Matrix4(),_vA=new THREE.Vector3(),_vB=new THREE.Vector3(),_upY=new THREE.Vector3(0,1,0);
+function bandTo(m,a,b){ _vA.set(a[0],a[1],a[2]); _vB.set(b[0],b[1],b[2]); const len=_vA.distanceTo(_vB)||0.001; m.position.copy(_vA).add(_vB).multiplyScalar(0.5); _mt.lookAt(_vA,_vB,_upY); m.quaternion.setFromRotationMatrix(_mt); m.scale.set(1,1,len); }
+function setSlingPull(g,k){ const u=g.userData; if(!u.pouch)return; const pz=0.03+k*0.2; u.pouch.position.z=pz; u.stone.position.z=pz-0.005; bandTo(u.bl,u.tipL,[0,0.27,pz]); bandTo(u.br,u.tipR,[0,0.27,pz]); }
+function buildWeapon(id){
+  const g=new THREE.Group(),BG=THREE.BoxGeometry,CG=THREE.CylinderGeometry;
+  const add=(geo,mat,x,y,z,rx,ry,rz)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); if(rx||ry||rz)m.rotation.set(rx||0,ry||0,rz||0); g.add(m); return m; };
+  if(id==='sling'){
+    const wood=WMAT(0x7a5230),leather=WMAT(0x4a2e1a),rub=new THREE.MeshBasicMaterial({color:0xd03030});
+    add(new CG(0.024,0.032,0.34,6),wood,0,-0.17,0); add(new CG(0.018,0.024,0.3,6),wood,-0.085,0.12,0,0,0,0.4); add(new CG(0.018,0.024,0.3,6),wood,0.085,0.12,0,0,0,-0.4);
+    const pouch=add(new BG(0.07,0.05,0.025),leather,0,0.27,0.03),bl=add(new BG(0.012,0.012,1),rub,0,0,0),br=add(new BG(0.012,0.012,1),rub,0,0,0),stone=add(new THREE.SphereGeometry(0.022,8,6),WMAT(0x8a8f94),0,0.27,0.02);
+    g.userData={pouch,bl,br,stone,tipL:[-0.158,0.26,0],tipR:[0.158,0.26,0]}; setSlingPull(g,0);
+  } else if(id==='gun'){
+    const dk=WMAT(0x1b1e22),mt=WMAT(0x5a6068,0x080a0c),or=new THREE.MeshBasicMaterial({color:0xff7a1a});
+    add(new BG(0.07,0.1,0.36),mt,0,0.05,-0.12); add(new BG(0.06,0.15,0.09),dk,0,-0.07,0.03,-0.25,0,0); add(new BG(0.05,0.03,0.1),dk,0,-0.01,-0.02); add(new BG(0.075,0.03,0.03),or,0,0.105,-0.28); add(new BG(0.03,0.04,0.2),dk,0,0.105,-0.1);
+  } else if(id==='sword'){
+    const bl=WMAT(0xc9d2da,0x10161a),gold=WMAT(0xb08a2a,0x1a1204),dk=WMAT(0x3a2418);
+    add(new BG(0.07,0.95,0.016),bl,0,0.55,0); add(new THREE.ConeGeometry(0.036,0.14,4),bl,0,1.1,0,0,Math.PI/4,0); add(new BG(0.3,0.05,0.07),gold,0,0.06,0); add(new CG(0.026,0.028,0.22,8),dk,0,-0.07,0); add(new THREE.SphereGeometry(0.04,8,6),gold,0,-0.2,0);
+    add(new BG(0.012,0.8,0.018),WMAT(0xeef6ff,0x203040),0,0.55,0);
+  } else if(id==='hammer'){
+    const wood=WMAT(0x6b4a2b),st=WMAT(0x8796a6,0x0a1018),or=new THREE.MeshBasicMaterial({color:0xff8a20});
+    add(new CG(0.03,0.038,0.82,8),wood,0,0,0); add(new BG(0.36,0.2,0.2),st,0,0.42,0); add(new BG(0.04,0.22,0.22),or,-0.12,0.42,0); add(new BG(0.04,0.22,0.22),or,0.12,0.42,0); add(new THREE.SphereGeometry(0.045,8,6),wood,0,-0.42,0);
+  } else { /* stick */
+    const wood=WMAT(0x7a5a38),dk=WMAT(0x3a2a18);
+    add(new CG(0.024,0.03,0.95,7),wood,0,0.45,0); for(const y of [0.1,0.45,0.8])add(new CG(0.032,0.032,0.04,7),dk,0,y,0); add(new THREE.SphereGeometry(0.03,6,5),dk,0,0.93,0);
+  }
+  g.userData.id=id; return g;
+}
+const WPOSE={sling:{p:[0.27,-0.36,-0.55],r:[-0.3,0,0.08],dur:0.55,k:'sling'},gun:{p:[0.25,-0.26,-0.5],r:[0,0,0],dur:0.2,k:'gun'},sword:{p:[0.3,-0.4,-0.6],r:[-0.5,0.2,-0.5],dur:0.42,k:'slash'},hammer:{p:[0.34,-0.36,-0.58],r:[-0.45,0.3,-0.35],dur:0.9,k:'smash'},stick:{p:[0.3,-0.42,-0.55],r:[-0.5,0.2,-0.3],dur:0.3,k:'whack'}};
+const heldW={}; for(const id of BCORE.ORDER){ const m=buildWeapon(id); m.visible=false; cam.add(m); heldW[id]=m; }
+/* kiosk vitrini: ağacın dallarında dönen modeller */
+const dispW=[]; { const tips=[[-1.9,3.0],[-1.0,3.55],[0,3.85],[1.0,3.55],[1.9,3.0]]; BCORE.ORDER.forEach((id,i)=>{ const m=buildWeapon(id); m.scale.setScalar(1.25); m.position.set(TK.x+tips[i][0],tips[i][1]+0.1,TK.z+1.0); scene.add(m); dispW.push(m); }); }
+
+/* ---------- ses ---------- */
+Object.assign(SFX,{
+  wGun(){nz(0.09,{ft:'highpass',f:1400,vol:0.5});tone(180,0.14,{type:'square',vol:0.2,to:55});},
+  wSling(){tone(320,0.1,{type:'triangle',vol:0.18,to:110});nz(0.06,{ft:'bandpass',f:2600,vol:0.15});},
+  wSword(){nz(0.2,{ft:'highpass',f:2200,vol:0.25,att:0.03});tone(900,0.15,{type:'sawtooth',vol:0.05,to:300});},
+  wHammer(){tone(85,0.28,{vol:0.5,to:38});nz(0.16,{f:800,vol:0.3,delay:0.3});},
+  wStick(){nz(0.1,{f:1300,vol:0.2});tone(320,0.06,{type:'square',vol:0.08,to:140});},
+  hit(){tone(1100,0.05,{type:'square',vol:0.08});tone(1650,0.06,{type:'square',vol:0.06,delay:0.04});},
+  frost(x,z){const d=sp(x,z);[1800,2400,3100].forEach((f,i)=>tone(f,0.5,{type:'triangle',vol:0.08,to:f*0.6,delay:i*0.05,dest:d}));nz(0.4,{ft:'highpass',f:4000,vol:0.2,dest:d});},
+  tp(){tone(200,0.6,{type:'sawtooth',vol:0.14,to:1200,lp:2500});nz(0.5,{ft:'highpass',f:3000,vol:0.15});},
+  bossIntro(){tone(60,2.4,{type:'sawtooth',vol:0.3,to:35,lp:300,att:0.5});tone(46,2.6,{vol:0.6,to:30});nz(1.8,{f:260,vol:0.3,att:0.6});},
+  bossRoar(){tone(70,1.8,{type:'sawtooth',vol:0.5,to:32,lp:380,att:0.1});tone(55,2,{vol:0.8,to:24});nz(1.6,{f:600,vol:0.45,att:0.1});[420,610].forEach((f,i)=>tone(f,1.2,{type:'sawtooth',vol:0.07,to:f*0.4,delay:i*0.05}));},
+  bossWind(x,z){const d=sp(x,z);tone(80,1.0,{type:'sawtooth',vol:0.3,to:150,lp:520,att:0.3,dest:d});nz(0.9,{f:300,vol:0.2,att:0.4,dest:d});},
+  waveWind(x,z){const d=sp(x,z);tone(180,1.8,{type:'sawtooth',vol:0.16,to:980,lp:2200,att:0.6,dest:d});tone(90,1.8,{vol:0.5,to:260,dest:d,att:0.5});},
+  waveBlast(x,z){const d=sp(x,z);tone(70,1.5,{vol:0.9,to:24,dest:d});nz(1.3,{f:1000,vol:0.55,dest:d});tone(520,1.1,{type:'square',vol:0.16,to:90,dest:d,lp:1600});},
+  bossDie(x,z){const d=sp(x,z);tone(90,2.6,{type:'sawtooth',vol:0.5,to:20,lp:500,dest:d});nz(2.2,{f:400,vol:0.4,dest:d});}
+});
+
+/* ---------- altın / cüzdan ---------- */
+function refreshGold(){ const t=TW(); $('gold').textContent='⛁ '+t.gold+' ALTIN'; $('gold').classList.remove('hid'); }
+function popGain(txt){ const e=$('gainPop'); e.textContent=txt; e.classList.remove('hid'); e.style.animation='none'; void e.offsetWidth; e.style.animation='gainup .9s ease-out forwards'; }
+function spAddGold(n){ const t=TW(); t.gold=Math.max(0,Math.min(1000000,t.gold+n)); saveGame(); refreshGold(); if(techOpen)renderTech(); }
+function hitMark(kill){ const e=$('hitm'); e.classList.remove('hid'); e.style.animation='none'; void e.offsetWidth; e.style.animation='hitm .25s ease-out forwards'; SFX.hit(); }
+
+/* ---------- Teknoloji Ağacı arayüzü ---------- */
+const TECH_STAT=id=>{ const W=BCORE.WEAPONS[id]; return 'HASAR '+W.dmg+' • '+(W.cd).toFixed(2)+' sn aralık • '+(W.ranged?'MENZİLLİ '+W.reach+' m':'YAKIN '+W.reach+' m')+' • TUŞ '+W.slot; };
+function techMsg(t,bad){ const e=$('techMsg'); e.textContent=t||''; e.style.color=bad?'#ff6a5a':'#7dff9c'; }
+function renderTech(){
+  const t=TW(); $('techGold').textContent='ALTININ: '+t.gold; const L=$('techList'); L.textContent='';
+  BCORE.ORDER.forEach((id,i)=>{
+    const W=BCORE.WEAPONS[id],has=owns(id),row=document.createElement('div'); row.className='trow'+(i===0?' root':'')+(has?' own':'');
+    const nm=document.createElement('div'); nm.className='tn'; nm.textContent=(i===0?'◆ ':'└ ')+W.name+(i===0?'  (BAŞLANGIÇ • ÜCRETSİZ)':''); row.appendChild(nm);
+    const ds=document.createElement('div'); ds.className='td'; ds.textContent=W.desc+'  '+TECH_STAT(id); row.appendChild(ds);
+    const b=document.createElement('button'); b.className='btn sm tb';
+    if(has){ b.textContent=curW===id?'ELİNDE (bırak)':'KUŞAN'; b.onclick=()=>{ if(curW===id)unequipWeapon(); else equipWeapon(id); renderTech(); }; }
+    else if(W.price===0){ b.textContent='ÜCRETSİZ AÇ'; b.classList.add('free'); b.onclick=()=>buyItem(id); }
+    else { b.textContent='SATIN AL — '+W.price+' ALTIN'; if(t.gold<W.price)b.classList.add('poor'); b.onclick=()=>buyItem(id); }
+    row.appendChild(b); L.appendChild(row); });
+}
+function openTech(){ techOpen=true; renderTech(); techMsg(owns('sling')?'Altın: boss\'a vurdukça (hasar × 0,25) ve zaferde (+'+BCORE.BOSS.winGold+') kazanılır.':'İlk eşya SAPAN ücretsiz: ÜCRETSİZ AÇ düğmesine bas.'); show('techUI'); state='modal'; modalKind='tech'; try{document.exitPointerLock();}catch(e){} }
+function buyItem(id){
+  const W=BCORE.WEAPONS[id]; if(!W)return;
+  if(MPS.active){ if(!MPS.net){ techMsg('Sunucuya bağlı değilsin.',1); return; }
+    MPS.net.buy(id,r=>{ if(r&&r.ok){ mpw.gold=r.gold; mpw.w=r.weapons.slice(); afterBuy(id); } else { SFX.err(); techMsg((r&&r.error)||'Satın alınamadı.',1); } }); return; }
+  const t=TW(); if(t.w.includes(id)){ equipWeapon(id); renderTech(); return; }
+  if(t.gold<W.price){ SFX.err(); techMsg('Yetersiz altın. '+W.price+' gerekli.',1); return; }
+  t.gold-=W.price; t.w.push(id); saveGame(); afterBuy(id);
+}
+function afterBuy(id){ SFX.pickup(); refreshGold(); equipWeapon(id,true); renderTech(); techMsg(BCORE.WEAPONS[id].name+(BCORE.WEAPONS[id].price===0?' ÜCRETSİZ açıldı ve kuşanıldı! Tıkla / VUR: saldır.':' satın alındı ve kuşanıldı.')); refreshWbar(); }
+
+/* ---------- silah kuşanma / bırakma / çubuğu ---------- */
+function equipWeapon(id,quiet){
+  const W=BCORE.WEAPONS[id]; if(!W)return;
+  if(!owns(id)){ SFX.err(); msg(W.name+' sende yok. Teknoloji Ağacı\'ndan al'+(W.price===0?' (ÜCRETSİZ).':'.'),3); return; }
+  if(BOSSC.down)return;
+  if(MPS.active&&MPS.equipped)equipHammer(null);
+  curW=id; wAnim=0; refreshWbar(); if(!quiet){ SFX.click(); msg(W.name+' elinde — tıkla / VUR: saldır • 0: bırak',2.5); }
+}
+function unequipWeapon(){ if(!curW)return; curW=null; refreshWbar(); }
+function refreshWbar(){
+  const bar=$('wbar'); bar.textContent=''; const list=BCORE.ORDER.filter(owns).sort((a,b)=>BCORE.WEAPONS[a].slot-BCORE.WEAPONS[b].slot);
+  for(const id of list){ const b=document.createElement('button'); b.dataset.w=id; b.textContent=BCORE.WEAPONS[id].slot+' '+BCORE.WEAPONS[id].name; if(curW===id)b.className='on'; bar.appendChild(b); }
+  $('techHint').classList.toggle('hid',TW().w.length>0||state==='menu');
+}
+$('wbar').addEventListener('pointerdown',e=>{ const id=e.target&&e.target.dataset&&e.target.dataset.w; if(!id)return; e.preventDefault(); e.stopPropagation(); if(state!=='playing')return; if(curW===id)unequipWeapon(); else equipWeapon(id); });
+function weaponKey(e){
+  if(e.repeat)return false;
+  if(e.code==='Digit0'){ if(curW)unequipWeapon(); else if(MPS.admin&&MPS.equipped)equipHammer(null); return true; }
+  const m=/^Digit([1-5])$/.exec(e.code); if(!m)return false;
+  const slot=+m[1],id=BCORE.ORDER.find(k=>BCORE.WEAPONS[k].slot===slot); if(!id)return false;
+  if(curW===id)unequipWeapon(); else equipWeapon(id); return true;
+}
+
+/* ---------- saldırı: ışın izi, canavar dondurma, boss hasarı ---------- */
+const tracers=[]; for(let i=0;i<8;i++){ const m=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,1),new THREE.MeshBasicMaterial({color:0xffe9a0,transparent:true,opacity:0.9,fog:false})); m.visible=false; scene.add(m); tracers.push({m,t:0,dur:0.1,a:new THREE.Vector3(),b:new THREE.Vector3(),stone:false}); }
+function fireTracer(id,endPt){ const W=BCORE.WEAPONS[id]; if(!W.ranged)return;
+  const T=tracers.find(q=>!q.m.visible)||tracers[0]; cam.getWorldDirection(_v1); const rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw);
+  T.a.set(cam.position.x+rx*0.22+_v1.x*0.6,cam.position.y-0.16+_v1.y*0.6,cam.position.z+rz*0.22+_v1.z*0.6);
+  if(endPt)T.b.copy(endPt); else T.b.copy(T.a).addScaledVector(_v1,id==='gun'?60:40);
+  T.t=0; T.dur=id==='gun'?0.08:0.16; T.stone=id==='sling'; T.m.material.color.setHex(T.stone?0xb8bcc0:0xffe9a0); T.m.visible=true; }
+function updTracers(dt){ for(const T of tracers){ if(!T.m.visible)continue; T.t+=dt; const k=Math.min(1,T.t/T.dur); if(T.stone){ T.m.position.lerpVectors(T.a,T.b,k); T.m.scale.set(0.09,0.09,0.09); } else { T.m.position.lerpVectors(T.a,T.b,k*0.9+0.05); T.m.scale.set(1,1,3.2); T.m.lookAt(T.b); } if(k>=1)T.m.visible=false; } }
+function freezeMonster(m){ if(m.freezeImm>0){ msg('Canavar donmaya direniyor…',1.6); return; } if(m.frozen>0)return; m.frozen=BCORE.FREEZE_SECONDS; setFrost(m,true); SFX.frost(m.x,m.z); msg('CANAVAR DONDU — '+BCORE.FREEZE_SECONDS+' saniye! (ölmez)',2.4); hitMark(); }
+function setFrost(m,on){ m.rig.g.traverse(o=>{ if(o.isMesh&&o.material&&o.material.emissive)o.material.emissive.setHex(on?0x2a70c8:0x000000); }); }
+function hitMonsters(id){
+  const W=BCORE.WEAPONS[id]; let best=null,bd=1e9; const fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),cp=cam.position; cam.getWorldDirection(_v1);
+  for(const m of MONS){ if(!m.active||!m.rig.g.visible)continue; const dx=m.x-player.x,dz=m.z-player.z,d=Math.hypot(dx,dz);
+    if(W.ranged){ const vx=m.x-cp.x,vy=1.3-cp.y,vz=m.z-cp.z,t=vx*_v1.x+vy*_v1.y+vz*_v1.z; if(t<0.4||t>W.reach)continue; const px=vx-_v1.x*t,py=vy-_v1.y*t,pz=vz-_v1.z*t; if(Math.sqrt(px*px+py*py+pz*pz)>(m.kind===1?1.0:1.1))continue; }
+    else { if(d>W.reach+0.7)continue; if(d>0.9&&(fx*dx+fz*dz)/d<0.45)continue; }
+    if(!segClear(player.x,player.z,m.x,m.z,false))continue; if(d<bd){ bd=d; best=m; } }
+  if(best)freezeMonster(best); return best;
+}
+function bossHitFx(dmg,gold){ hitMark(); BOSSC.flash=Math.min(1,BOSSC.flash+0.7); popGain('-'+dmg+(gold?'  +'+gold+'⛁':'')); }
+function weaponUse(){
+  if(state!=='playing'||!curW||player.hidden||BOSSC.down||wCd>0)return;
+  const id=curW,W=BCORE.WEAPONS[id]; wCd=W.cd; wAnim=1; SFX[{gun:'wGun',sling:'wSling',sword:'wSword',hammer:'wHammer',stick:'wStick'}[id]]();
+  const bs=BOSSC.snap, fight=BOSSC.zone==='arena'&&bs&&bs.ph==='fight'; let endPt=null;
+  if(fight){
+    const bb=bs.b; if(W.ranged){ cam.getWorldDirection(_v1); const dd=Math.hypot(bb.x-player.x,bb.z-player.z); endPt=new THREE.Vector3().copy(cam.position).addScaledVector(_v1,Math.min(W.reach,dd)); }
+    if(MPS.active){ if(MPS.net)MPS.net.attack(id,player.yaw,player.pitch,r=>{ if(r&&r.ok&&r.hit)bossHitFx(r.dmg,r.gold); }); }
+    else if(SPB.S){ const res=BCORE.attackResult(SPB.S,{x:player.x,z:player.z},id,player.yaw,player.pitch); if(res&&res.hit){ const d=BCORE.applyDamage(SPB.S,'me',res.dmg); spAddGold(d.gold); bossHitFx(res.dmg,d.gold); } }
+  } else if(BOSSC.zone==='park'){ const hm=hitMonsters(id); if(hm&&W.ranged)endPt=new THREE.Vector3(hm.x,1.3,hm.z); }
+  fireTracer(id,endPt);
+}
+function updWeapon(dt){
+  wCd=Math.max(0,wCd-dt);
+  for(const k in heldW)heldW[k].visible=(k===curW)&&state!=='menu'&&!BOSSC.down;
+  if((mouseDown&&(locked||fallback)||touchHit)&&curW&&!MPS.equipped)weaponUse();
+  for(const m of dispW){ m.rotation.y+=dt*0.9; }
+  if(!curW)return; const P=WPOSE[curW],g=heldW[curW];
+  if(wAnim>0)wAnim=Math.max(0,wAnim-dt/P.dur); const u=1-wAnim;
+  let px=P.p[0],py=P.p[1],pz=P.p[2],rx=P.r[0],ry=P.r[1],rz=P.r[2];
+  if(player.speed>0.1)py+=Math.sin(player.bobT)*0.006;
+  if(wAnim>0){ const s=Math.sin(u*Math.PI);
+    if(P.k==='gun'){ const q=Math.pow(1-u,2); pz+=0.1*q; rx+=0.35*q; }
+    else if(P.k==='sling'){ const k=u<0.55?u/0.55:Math.max(0,1-(u-0.55)/0.12); setSlingPull(g,k); rx+=-0.12*k+(u>0.6?0.18*(1-u):0); }
+    else if(P.k==='slash'){ rx+=-0.9*s; rz+=(u-0.5)*2.0; px+=(u-0.5)*0.3; }
+    else if(P.k==='smash'){ const a=u<0.4?-u/0.4:(u<0.55?-1+((u-0.4)/0.15)*1.6:0.6*(1-(u-0.55)/0.45)); rx+=1.4*a; py+=-0.05*a; }
+    else { pz-=0.18*s; rx+=-0.6*s; } }
+  else if(P.k==='sling')setSlingPull(g,0);
+  g.position.set(px,py,pz); g.rotation.set(rx,ry,rz);
+}
+
+/* ---------- boss dünyası: portal, boss modeli, uyarı alanları, ses dalgası ---------- */
+function mkHazTex(c1,c2){ const t=canvasTex(64,64,(g,w,h)=>{ g.fillStyle=c1; g.fillRect(0,0,w,h); g.fillStyle=c2; for(let i=-2;i<6;i++){ g.beginPath(); g.moveTo(i*16,0); g.lineTo(i*16+16,0); g.lineTo(i*16+16+64,64); g.lineTo(i*16+64,64); g.closePath(); g.fill(); } }); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; }
+const hazRed=mkHazTex('rgba(255,40,30,0.55)','rgba(60,0,0,0.45)'), hazBlue=mkHazTex('rgba(60,170,255,0.55)','rgba(0,20,60,0.45)');
+const tgMat=(tex)=>new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:0.5,depthWrite:false,side:THREE.DoubleSide,fog:false});
+const tgPunch=new THREE.Mesh(new THREE.PlaneGeometry(1,1),tgMat(hazRed)); tgPunch.rotation.x=-Math.PI/2; tgPunch.visible=false; scene.add(tgPunch);
+const tgBeamG=new THREE.Group(); tgBeamG.visible=false; scene.add(tgBeamG);
+const tgBeam=new THREE.Mesh(new THREE.PlaneGeometry(1,1),tgMat(hazBlue)); tgBeam.rotation.x=-Math.PI/2; tgBeamG.add(tgBeam);
+const waveG=new THREE.Group(); waveG.visible=false; scene.add(waveG);
+const waveMat=new THREE.MeshBasicMaterial({color:0x9fe0ff,transparent:true,opacity:0.42,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
+const waveBox=new THREE.Mesh(new THREE.BoxGeometry(1,2.6,1),waveMat); waveG.add(waveBox);
+const waveFloor=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false})); waveFloor.rotation.x=-Math.PI/2; waveFloor.position.y=0.09; waveG.add(waveFloor);
+const bossRig=buildClown(); bossRig.g.scale.setScalar(BCORE.BOSS.scale); bossRig.g.visible=false; scene.add(bossRig.g);
+{ const M=c=>new THREE.MeshLambertMaterial({color:c,emissive:0x300000}); for(const y of [1.5,1.8,2.1]){ const b=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,6),M(0xe0c040)); b.position.set(0,y,0.17); bossRig.g.add(b); }
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6),new THREE.MeshLambertMaterial({color:0xd03020})); hair.position.set(-0.3,2.55,0); bossRig.g.add(hair); const hair2=hair.clone(); hair2.position.x=0.3; bossRig.g.add(hair2); }
+const bossMats=[]; bossRig.g.traverse(o=>{ if(o.isMesh&&o.material&&o.material.emissive&&bossMats.indexOf(o.material)<0)bossMats.push(o.material); });
+function bossGlow(hex,k){ for(const m of bossMats){ m.emissive.setHex(hex); m.emissiveIntensity=k; } }
+/* portal (plaza ortası): büyük girdap + halka + yerde giriş alanı */
+const portalG=new THREE.Group(); portalG.position.set(BCORE.PORTAL.x,0,BCORE.PORTAL.z); portalG.visible=false; scene.add(portalG);
+const swirlTex=canvasTex(256,256,(g,w,h)=>{ const gr=g.createRadialGradient(128,128,10,128,128,128); gr.addColorStop(0,'rgba(255,255,255,0.95)'); gr.addColorStop(0.35,'rgba(170,90,255,0.8)'); gr.addColorStop(1,'rgba(40,10,120,0.25)'); g.fillStyle=gr; g.fillRect(0,0,w,h);
+  g.strokeStyle='rgba(230,200,255,0.8)'; g.lineWidth=6; for(let a=0;a<4;a++){ g.beginPath(); for(let t=0;t<60;t++){ const ang=a*Math.PI/2+t*0.18, r=t*2.1; g.lineTo(128+Math.cos(ang)*r,128+Math.sin(ang)*r); } g.stroke(); } });
+swirlTex.center.set(0.5,0.5);
+const swirl=new THREE.Mesh(new THREE.CircleGeometry(4.6,48),new THREE.MeshBasicMaterial({map:swirlTex,transparent:true,opacity:0.92,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending,fog:false})); swirl.position.y=4.8; portalG.add(swirl);
+const pRing=new THREE.Mesh(new THREE.TorusGeometry(4.7,0.24,8,56),new THREE.MeshBasicMaterial({color:0xc080ff,fog:false})); pRing.position.y=4.8; portalG.add(pRing);
+const pRing2=new THREE.Mesh(new THREE.TorusGeometry(4.2,0.08,6,48),new THREE.MeshBasicMaterial({color:0xffffff,fog:false})); pRing2.position.y=4.8; portalG.add(pRing2);
+const pFloor=new THREE.Mesh(new THREE.CircleGeometry(BCORE.PORTAL.r+0.3,40),new THREE.MeshBasicMaterial({color:0xb070ff,transparent:true,opacity:0.4,depthWrite:false,blending:THREE.AdditiveBlending,fog:false})); pFloor.rotation.x=-Math.PI/2; pFloor.position.y=0.07; portalG.add(pFloor);
+/* bekleme odası ekranı */
+const waitCv=document.createElement('canvas'); waitCv.width=512; waitCv.height=256; const waitTex=new THREE.CanvasTexture(waitCv);
+const waitScr=new THREE.Mesh(new THREE.PlaneGeometry(6.4,3.2),new THREE.MeshBasicMaterial({map:waitTex,fog:false})); waitScr.position.set(WT.cx,2.1,WT.cz-WT.half+0.12); scene.add(waitScr);
+let waitDrawT=0;
+function drawWait(){ const g=waitCv.getContext('2d'),sn=BOSSC.snap; g.fillStyle='#050a0e'; g.fillRect(0,0,512,256); g.strokeStyle='#2ad4ff'; g.lineWidth=4; g.strokeRect(6,6,500,244);
+  g.textAlign='center'; g.fillStyle='#ffd23f'; g.font='bold 30px "Courier New"'; g.fillText('BEKLEME ODASI',256,48);
+  const cd=sn&&sn.cd!=null?Math.max(0,Math.ceil(sn.cd)):null; g.fillStyle='#fff'; g.font='bold 84px "Courier New"'; g.fillText(cd==null?'--':(Math.floor(cd/60)+':'+String(cd%60).padStart(2,'0')),256,140);
+  g.fillStyle='#7dff9c'; g.font='bold 20px "Courier New"'; g.fillText('SAVAŞ BAŞLAYINCA ARENAYA ALINACAKSIN',256,176);
+  g.fillStyle='#ffa0a0'; g.font='15px "Courier New"'; g.fillText('Yumruk: kol kalkınca 1 sn var, KIRMIZI alandan çık',256,200); g.fillText('Ses dalgası: SÜTUNUN ARKASINA geç',256,220); g.fillText('1-5: silah • sol tık: saldır',256,240); waitTex.needsUpdate=true; }
+
+/* ---------- oturum olayları (sunucudan ya da tek oyunculu çekirdekten) ---------- */
+let bannerT=0;
+function banner(t,secs,col){ const e=$('bossBanner'); e.textContent=t; e.style.color=col||'#ff4a3a'; e.classList.remove('hid'); bannerT=secs||3; }
+function fmtT(s){ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function doTeleport(spot,zone){
+  BOSSC.zone=zone; if(player.hidden){ player.hidden=false; player.hideSpot=null; } if(state==='modal'||state==='cam'){ if(state==='cam')exitCam(); else closeModal(); }
+  player.x=spot.x; player.z=spot.z; player.y=Math.max(0,spot.y||0); player.vy=0; player.yaw=typeof spot.yaw==='number'?spot.yaw:0; player.pitch=0; MPS.tp=true;
+  if(zone==='park'){ BOSSC.down=false; scene.fog.density=0.027; } else scene.fog.density=zone==='arena'?0.013:0.018;
+  const f=$('flashov'); f.style.transition='none'; f.style.opacity=0.95; requestAnimationFrame(()=>{ f.style.transition='opacity .7s'; f.style.opacity=0; });
+  SFX.tp(); refreshWbar();
+  if(zone==='wait')msg('BEKLEME ODASI — geri sayım bitince boss arenasına alınacaksın.',6);
+  else if(zone==='arena')msg('ARENA: 1-5 silahını kuşan, tıkla. KIRMIZI alandan ve ses dalgasından kaç!',7);
+}
+function bossFx(e){
+  if(e.t==='announce'){
+    if(e.k==='intro'){ banner('⚠ DEV PALYAÇO GELİYOR!',5,'#ff4a3a'); msg('Plazanın ortasında portal açılıyor — portalın içine yürü!',7); SFX.bossIntro(); }
+    else if(e.k==='fight'){ banner('BOSS SAVAŞI BAŞLADI!',3.5,'#ff4a3a'); }
+  } else if(e.t==='phase'){
+    if(e.phase==='portal')msg('PORTAL AÇIK! Plazanın ortasındaki portala gir.',6);
+    else if(e.phase==='wait'&&BOSSC.zone==='park')msg('Savaş başlıyor — portal hâlâ açık, katılmak için gir!',5);
+  }
+}
+function bossHurt(k){
+  if(BOSSC.down||MPS.god)return; BOSSC.down=true; unequipWeapon(); player.shake=1.6; SFX.scream();
+  const f=$('flashov'); f.style.transition='none'; f.style.background='#a00'; f.style.opacity=0.8; requestAnimationFrame(()=>{ f.style.transition='opacity 1.2s'; f.style.opacity=0; setTimeout(()=>{f.style.background='#fff';},1300); });
+  banner('ÖLDÜN! '+(k==='wave'?'SES DALGASI':'YUMRUK')+' seni yakaladı — savaş bitene kadar izle.',6,'#ff3040');
+}
+function bossEnd(res){
+  BOSSC.ended=1; if(res==='win'){ banner('ZAFER! DEV PALYAÇO YENİLDİ',6,'#7dff9c'); SFX.win(); }
+  else if(res==='lose'){ banner('BOSS KAZANDI…',6,'#ff4a3a'); }
+  else banner('Portal kapandı — kimse girmedi.',4,'#aab');
+}
+function bossReset(){ BOSSC.zone='park'; BOSSC.snap=null; BOSSC.down=false; BOSSC.st=''; SPB.S=null; SPB.nextT=BCORE.TIMING.autoEvery; SPB.warned=0; scene.fog.density=0.027; portalG.visible=false; bossRig.g.visible=false; tgPunch.visible=false; tgBeamG.visible=false; waveG.visible=false; $('bossHud').classList.add('hid'); $('bossBanner').classList.add('hid'); $('bossSub').textContent=''; unequipWeapon(); }
+
+/* ---------- tek oyunculu ev sahibi: aynı çekirdek yerelde çalışır ---------- */
+function spStartBoss(){ if(MPS.active||SPB.S)return false; SPB.S=BCORE.createSession({}); SPB.nextT=BCORE.TIMING.autoEvery; SPB.warned=0; return true; }
+function spEvent(e){
+  if(e.t==='announce'||e.t==='phase')bossFx(e);
+  else if(e.t==='enter'){ if(TW().w.length===0){ TW().w.push('sling'); saveGame(); refreshWbar(); msg('Elin boş girmeyesin: ÜCRETSİZ SAPAN açıldı.',4); } doTeleport(e.spawn,'wait'); }
+  else if(e.t==='toArena'){ for(const m of e.moves)if(m.id==='me')doTeleport(m,'arena'); }
+  else if(e.t==='hurt'){ if(e.id==='me')bossHurt(e.k); }
+  else if(e.t==='end')bossEnd(e.result);
+  else if(e.t==='rewards'){ if(e.gold.me){ spAddGold(e.gold.me); popGain('+'+e.gold.me+' ⛁ ZAFER'); } }
+  else if(e.t==='home'){ for(const m of e.moves)if(m.id==='me')doTeleport(m,'park'); }
+}
+function spTick(dt){
+  if(MPS.active)return;
+  if(!SPB.S){ BOSSC.snap=null; if(state!=='playing')return; SPB.nextT-=dt;
+    for(const w of [60,10])if(SPB.nextT<=w&&(SPB.warned===0||SPB.warned>w)){ SPB.warned=w; msg('Boss savaşı '+w+' saniye sonra başlıyor!',4); }
+    if(SPB.nextT<=0&&BOSSC.zone==='park'&&!player.hidden)spStartBoss(); return; }
+  const S=SPB.S; const evs=BCORE.tick(S,dt,[{id:'me',x:player.x,z:player.z,hp:BOSSC.down?0:100,alive:!BOSSC.down&&state!=='dead',zone:BOSSC.zone}]);
+  for(const e of evs)spEvent(e);
+  BOSSC.snap=BCORE.snapshot(S); BOSSC.newSnap=true; if(S.done){ SPB.S=null; BOSSC.snap=null; }
+}
+function startBossAdmin(){
+  if(!adminOK()){ msg('Boss savaşını yalnızca yönetici başlatabilir.',3); SFX.err(); return; }
+  if(MPS.active){ if(!MPS.net)return; MPS.net.bossStart(r=>{ if(r&&r.ok){ SFX.pickup(); msg('Boss savaşı başlatıldı!',3); } else { SFX.err(); msg((r&&r.error)||'Başlatılamadı.',3.5); } }); return; }
+  if(spStartBoss()){ SFX.pickup(); msg('Boss savaşı başlatıldı!',3); } else { SFX.err(); msg('Boss savaşı zaten sürüyor.',3); }
+}
+function giveGoldAdmin(){
+  const amt=Math.floor(Number($('acGoldAmt').value)),tg=$('acGoldTarget').value,out=$('acGoldMsg');
+  if(!(amt>=1&&amt<=100000)){ out.style.color='#ff6a5a'; out.textContent='Miktar 1 ile 100000 arasında olmalı.'; return; }
+  if(MPS.active){ if(!MPS.net)return; MPS.net.giveGold(tg,amt,r=>{ out.style.color=r&&r.ok?'#7dff9c':'#ff6a5a'; out.textContent=r&&r.ok?(r.count+' oyuncuya '+amt+' altın verildi.'):((r&&r.error)||'Verilemedi.'); }); }
+  else { spAddGold(amt); out.style.color='#7dff9c'; out.textContent='Sana '+amt+' altın verildi.'; }
+}
+function fillGoldTargets(){ const sel=$('acGoldTarget'); sel.textContent=''; const add=(v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); };
+  add('self','Kendim'); if(MPS.active){ add('all','Herkes'); for(const r of MPS.remote.values())add(r.id,r.name); } }
+let nextInT=0,nextInV=null;
+function pollAdminBoss(dt){ const el=$('acBossInfo'); if(MPS.active){ nextInT-=dt; if(nextInT<=0&&MPS.net){ nextInT=4; MPS.net.bossInfo(r=>{ if(r&&r.ok)nextInV=r.active?-1:r.nextIn; }); }
+    el.textContent=nextInV==null?'Boss durumu alınıyor…':nextInV<0?'Boss savaşı SÜRÜYOR':'Sonraki otomatik boss: '+fmtT(nextInV); }
+  else el.textContent=SPB.S?'Boss savaşı SÜRÜYOR':'Sonraki otomatik boss: '+fmtT(SPB.nextT); }
+
+/* ---------- boss görseli: sabit konum, kol/gövde animasyonları, uyarı alanları, dalga ---------- */
+const easeO=k=>1-Math.pow(1-Math.max(0,Math.min(1,k)),3);
+function bossStateChanged(b){
+  const x=b.x,z=b.z;
+  if(b.st==='punchWind')SFX.bossWind(x,z); else if(b.st==='punch'){ SFX.slam(x,z); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,0.9); }
+  else if(b.st==='waveWind')SFX.waveWind(x,z); else if(b.st==='wave'){ SFX.waveBlast(x,z); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,0.8); }
+  else if(b.st==='spawn'){ SFX.bossRoar(); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,1.2); }
+  else if(b.st==='dead')SFX.bossDie(x,z);
+  else if(b.st==='tired'&&BOSSC.zone==='arena')msg('BOSS YORGUN — ×1,5 hasar! SALDIR!',2.5);
+}
+function updBossVisual(dt){
+  const sn=BOSSC.snap,R=bossRig; if(!sn){ R.g.visible=false; portalG.visible=false; tgPunch.visible=false; tgBeamG.visible=false; waveG.visible=false; return; }
+  const b=sn.b,T=BCORE.TIMING,now=S.t;
+  if(b.st!==BOSSC.st){ BOSSC.st=b.st; BOSSC.sT=b.sT; bossStateChanged(b); BOSSC.newSnap=false; }
+  else { BOSSC.sT+=dt; if(BOSSC.newSnap){ BOSSC.newSnap=false; BOSSC.sT+=(b.sT-BOSSC.sT)*0.5; } }
+  const t=BOSSC.sT,st=b.st,side=b.sd;
+  /* portal */
+  const pt=sn.pt; portalG.visible=pt>0.01; if(portalG.visible){ portalG.scale.setScalar(Math.max(0.01,pt)); swirlTex.rotation=-now*1.4; pRing2.rotation.z=now*0.8; pRing.material.color.setHSL(0.76+Math.sin(now*2)*0.03,0.9,0.6); pFloor.material.opacity=0.28+0.18*Math.sin(now*4); }
+  /* poz sıfırla */
+  R.g.visible=!!b.v; let sc=BCORE.BOSS.scale,yaw=0; R.g.position.set(b.x,0,b.z); R.g.rotation.set(0,0,0);
+  for(const l of [R.legL,R.legR,R.armL,R.armR])l.rotation.set(0,0,0); R.head.rotation.set(0,0,0);
+  const raiseArm=(A,sg,k)=>{ A.rotation.x=-2.9*k; A.rotation.z=sg*0.25*k; };
+  let glow=0,gcol=0xff2010;
+  if(st==='walk'){ const ph=now*4.2; R.legL.rotation.x=Math.sin(ph)*0.5; R.legR.rotation.x=-Math.sin(ph)*0.5; R.armL.rotation.x=-Math.sin(ph)*0.4; R.armR.rotation.x=Math.sin(ph)*0.4; R.g.position.y=Math.abs(Math.sin(ph))*0.25; if(Math.floor(now*2.1)!==Math.floor((now-dt)*2.1)&&Math.hypot(b.x-player.x,b.z-player.z)<70){ SFX.mstep(b.x,b.z,true); player.shake=Math.max(player.shake,Math.max(0,0.5-Math.hypot(b.x-player.x,b.z-player.z)/90)); } }
+  else if(st==='summon'){ const k=easeO(t/0.8); R.armL.rotation.x=-2.8*k; R.armR.rotation.x=-2.8*k; R.armL.rotation.z=-0.3*k; R.armR.rotation.z=0.3*k; R.head.rotation.x=-0.5*k; R.g.rotation.z=Math.sin(now*30)*0.015; glow=0.5+0.4*Math.sin(now*10); gcol=0xa050ff; }
+  else if(st==='enter'){ const p=Math.min(1,t/T.introEnter); sc*=(1-0.92*p); const ph=now*4.2; R.legL.rotation.x=Math.sin(ph)*0.5; R.legR.rotation.x=-Math.sin(ph)*0.5; R.armL.rotation.x=-2.2; R.armR.rotation.x=-2.2; glow=p; gcol=0xa050ff; }
+  else if(st==='spawn'){ const k=easeO(t/0.8); R.head.rotation.x=-0.7*k; R.armL.rotation.z=-1.25*k; R.armR.rotation.z=1.25*k; R.g.rotation.x=-0.12*k; R.g.rotation.z=Math.sin(now*34)*0.02; glow=0.5*k; }
+  else if(st==='idle'||st==='recover'){ const br=Math.sin(now*1.6); R.armL.rotation.x=0.05+br*0.04; R.armR.rotation.x=0.05-br*0.04; R.head.rotation.z=Math.sin(now*0.9)*0.05; sc*=1+br*0.008; if(st==='recover'&&side){ const A=side==='R'?R.armL:R.armR,sg=side==='R'?-1:1,k=1-easeO(t/T.punchRecover); A.rotation.x=-0.6*k; A.rotation.z=sg*1.1*k; R.g.rotation.x=0.18*k; } }
+  else if(st==='punchWind'){ const A=side==='R'?R.armL:R.armR,sg=side==='R'?-1:1,k=easeO(t/0.3); raiseArm(A,sg,k); A.rotation.z+=Math.sin(now*42)*0.03*(t/T.punchWarn); R.g.rotation.z=-sg*0.06*k; R.head.rotation.z=-sg*0.2*k; glow=0.15+0.6*(t/T.punchWarn); gcol=0xff2010; }
+  else if(st==='punch'){ const A=side==='R'?R.armL:R.armR,sg=side==='R'?-1:1,u=Math.min(1,t/T.punchStrike),k=easeO(u/0.5); A.rotation.x=-2.9+2.3*k; A.rotation.z=sg*(0.25+0.85*k); R.g.rotation.x=0.25*k; R.g.rotation.z=sg*0.1*k; glow=1-u; gcol=0xff6030; }
+  else if(st==='waveWind'){ const k=easeO(t/T.waveWarn); R.armL.rotation.z=-1.25*k; R.armR.rotation.z=1.25*k; R.armL.rotation.x=-0.3*k; R.armR.rotation.x=-0.3*k; R.head.rotation.x=-0.6*k; yaw=b.wd*k; sc*=1+0.07*k; R.g.rotation.z=Math.sin(now*36)*0.012*k; glow=0.2+0.7*k*(0.6+0.4*Math.sin(now*14)); gcol=0x3a9cff; }
+  else if(st==='wave'){ R.armL.rotation.x=-1.55; R.armR.rotation.x=-1.55; R.head.rotation.x=0.25; R.g.rotation.x=0.18; yaw=b.wd; glow=0.9; gcol=0xbfe8ff; }
+  else if(st==='tired'){ const k=easeO(t/0.5); R.head.rotation.x=0.65*k; R.armL.rotation.x=0.3*k; R.armR.rotation.x=0.3*k; R.g.rotation.x=0.28*k; sc*=1+Math.sin(now*5)*0.012; glow=0.25; gcol=0x40a0ff; }
+  else if(st==='dead'){ const k=Math.min(1,t/1.6); R.g.rotation.x=-1.5*easeO(k); R.g.position.y=-0.7*k; }
+  R.g.rotation.y=yaw; R.g.scale.setScalar(sc);
+  BOSSC.flash=Math.max(0,BOSSC.flash-dt*3.2); if(BOSSC.flash>0){ gcol=0xff2020; glow=Math.max(glow,BOSSC.flash*0.9); }
+  bossGlow(gcol,glow);
+  /* uyarı alanı: yumruk (kırmızı taralı) */
+  const pw=st==='punchWind',ps=st==='punch';
+  tgPunch.visible=(pw||ps)&&!!side; if(tgPunch.visible){ const z=BCORE.punchZone(side),w=z.x2-z.x1,d=z.z2-z.z1; tgPunch.position.set((z.x1+z.x2)/2,0.08,(z.z1+z.z2)/2); tgPunch.scale.set(w,d,1); hazRed.repeat.set(w/3.5,d/3.5); hazRed.offset.x=now*0.4;
+    tgPunch.material.opacity=ps?Math.max(0,0.95-t*2.2):0.28+0.55*(t/T.punchWarn)+0.12*Math.sin(now*22); }
+  /* uyarı alanı: ses dalgası ışını + ilerleyen dalga */
+  const ww=st==='waveWind',wv=st==='wave'; tgBeamG.visible=ww||wv; waveG.visible=wv;
+  if(ww||wv){ const G=BCORE.waveGeom(b.wd),len=Math.max(0.1,b.wl),W2=BCORE.WAVE.halfW*2; tgBeamG.position.set(G.ox,0.08,G.oz); tgBeamG.rotation.y=b.wd; tgBeam.scale.set(W2,len,1); tgBeam.position.z=len/2; hazBlue.repeat.set(W2/3.5,len/3.5); hazBlue.offset.y=-now*(wv?3:0.8);
+    tgBeam.material.opacity=ww?0.25+0.5*(t/T.waveWarn)+0.12*Math.sin(now*18):Math.max(0.12,0.35-t*0.1); }
+  if(wv){ if(BOSSC.wf>b.wl)BOSSC.wf=b.wl; const G=BCORE.waveGeom(b.wd); if(t<dt*1.5)BOSSC.wf=0; BOSSC.wf=Math.min(b.wl,Math.max(BOSSC.wf+BCORE.WAVE.speed*dt,BOSSC.wf)); BOSSC.wf+=(b.wf-BOSSC.wf)*0.15; const th=BCORE.WAVE.thick,s0=Math.max(0,BOSSC.wf-th),L=Math.max(0.2,BOSSC.wf-s0);
+    waveG.position.set(G.ox,0,G.oz); waveG.rotation.y=b.wd; waveBox.scale.set(BCORE.WAVE.halfW*2,1,L); waveBox.position.set(0,1.3,s0+L/2); waveFloor.scale.set(BCORE.WAVE.halfW*2,L,1); waveFloor.position.set(0,0.09,s0+L/2); waveMat.opacity=0.3+0.2*Math.sin(now*40); }
+}
+
+/* ---------- HUD, banner, bekleme ekranı, ışıklar ---------- */
+const arenaL1=new THREE.PointLight(0xff5a3a,0,70,1.2); arenaL1.position.set(AR.cx,13,AR.cz-6); scene.add(arenaL1);
+const arenaL2=new THREE.PointLight(0x7aa8ff,0,60,1.4); arenaL2.position.set(AR.cx,10,AR.cz+12); scene.add(arenaL2);
+const waitL=new THREE.PointLight(0xaec8ff,0,24,1.6); waitL.position.set(WT.cx,3.6,WT.cz); scene.add(waitL);
+let hudT=0;
+function updBossSystem(dt){
+  if(!MPS.active)spTick(dt); else if(BOSSC.snap&&performance.now()-(BOSSC.snapAt||0)>1500)BOSSC.snap=null;
+  updBossVisual(dt); updWeapon(dt); updTracers(dt);
+  const z=BOSSC.zone; arenaL1.intensity=lerp(arenaL1.intensity,z==='arena'?2.6:0,Math.min(1,dt*3)); arenaL2.intensity=lerp(arenaL2.intensity,z==='arena'?1.3:0,Math.min(1,dt*3)); waitL.intensity=lerp(waitL.intensity,z==='wait'?1.8:0,Math.min(1,dt*3));
+  if(bannerT>0){ bannerT-=dt; if(bannerT<=0)$('bossBanner').classList.add('hid'); }
+  if(z==='wait'){ waitDrawT-=dt; if(waitDrawT<=0){ waitDrawT=0.4; drawWait(); } }
+  hudT-=dt; if(hudT>0)return; hudT=0.2;
+  refreshGold(); const sn=BOSSC.snap,hp=$('bossHud'),sub=$('bossSub');
+  $('techHint').classList.toggle('hid',TW().w.length>0||state==='menu');
+  $('tHit').classList.toggle('hid',!MPS.equipped&&!curW);
+  if(!sn){ hp.classList.add('hid'); }
+  else { const b=sn.b; let line='';
+    if(sn.ph==='intro')line='Dev Palyaço geliyor…'; else if(sn.ph==='portal')line=z==='park'?'PORTAL AÇIK — plazanın ortasına yürü  ('+fmtT(sn.cd||0)+')':'';
+    else if(sn.ph==='wait')line=z==='wait'?'SAVAŞ BAŞLIYOR: '+fmtT(sn.cd||0):(z==='park'?'Boss savaşı başlıyor ('+fmtT(sn.cd||0)+') — portal hâlâ açık!':'');
+    else if(sn.ph==='fight'){ line=z==='arena'?(BOSSC.down?'ÖLDÜN — izliyorsun':(b.st==='punchWind'?'⚠ YUMRUK GELİYOR — KIRMIZI ALANDAN ÇIK!':b.st==='waveWind'?'⚠ SES DALGASI — SÜTUNUN ARKASINA GEÇ!':b.st==='tired'?'BOSS YORGUN — ×1,5 HASAR':'Silahını kullan: tıkla / VUR')):'Boss savaşı sürüyor (arena)'; }
+    else if(sn.ph==='end')line=sn.res==='win'?'ZAFER':sn.res==='lose'?'BOSS KAZANDI':'';
+    sub.textContent=line; hp.classList.toggle('hid',!(sn.ph==='fight'||sn.ph==='end')&&!line);
+    const f=$('bossBarWrap'); f.classList.toggle('hid',!(sn.ph==='fight'||(sn.ph==='end'&&sn.res==='win'))); if(b.mx>0){ $('bossHp').style.width=(100*b.hp/b.mx)+'%'; $('bossHpTxt').textContent=b.hp+' / '+b.mx; } }
+  if(!$('adminCon').classList.contains('hid'))pollAdminBoss(0.2);
+}
+
+/* ---------- etkileşimler ---------- */
+addInter({x:TK.x,y:1.3,z:TK.z-0.9,r:3.4,on:()=>true,label:()=>'E: TEKNOLOJİ AĞACI'+(owns('sling')?'':' — ÜCRETSİZ SAPAN burada!'),act:openTech});
+addInter({x:-3.0,y:1.4,z:55.95,r:2.3,on:()=>staffDoor.open&&BOSSC.zone==='park',label:()=>(MPS.active&&!MPS.admin)?'BOSS BAŞLAT (yalnızca yönetici)':'E: BOSS SAVAŞINI BAŞLAT',act:startBossAdmin});
+
 /* saklanma noktaları */
 const HIDES=[{x:-2.85,z:53.1,ex:-1.4,ez:52.2,cy:0.55,label:'Masanın altı'},{x:-11.3,z:30.6,ex:-10.3,ez:32.1,cy:0.7,label:'Bilet gişesi'},{x:-45,z:-48,ex:-45,ez:-46.5,cy:0.8,label:'Depo sandığı'},{x:28.5,z:41.5,ex:29.5,ez:40.3,cy:0.8,label:'Oyun makinesi arkası'}];
 for(let i=1;i<HIDES.length;i++){ const h=HIDES[i]; addInter({x:h.x,y:0.8,z:h.z,r:2.4,on:()=>!player.hidden,label:()=>'E: Saklan — '+h.label,act:()=>enterHide(h)}); }
@@ -1055,7 +1774,7 @@ function resolve(o,r){ for(const c of colliders){ if(!c.on)continue; const nx=Ma
     if(d2<r*r){ if(d2>1e-8){ const d=Math.sqrt(d2); o.x=nx+dx/d*r; o.z=nz+dz/d*r; }
       else { const l=o.x-c.x1,rr=c.x2-o.x,t=o.z-c.z1,b=c.z2-o.z,m=Math.min(l,rr,t,b); if(m===l)o.x=c.x1-r; else if(m===rr)o.x=c.x2+r; else if(m===t)o.z=c.z1-r; else o.z=c.z2+r; } } } }
 function moveCircle(o,dx,dz,r){ o.x+=dx; o.z+=dz; resolve(o,r); resolve(o,r); }
-function clampBounds(o){ const L=65; if(progress.exit&&o.z<-65.4){ o.x=clamp(o.x,-3.2,3.2); o.z=Math.max(o.z,-79); } else { o.x=clamp(o.x,-L,L); o.z=clamp(o.z,-L,L); } }
+function clampBounds(o){ if(o===player&&BOSSC.zone!=='park'){ if(BOSSC.zone==='arena'){ const dx=o.x-AR.cx,dz=o.z-AR.cz,r=Math.hypot(dx,dz),R=20.6; if(r>R){ o.x=AR.cx+dx/r*R; o.z=AR.cz+dz/r*R; } } else { const h=WT.half-0.6; o.x=clamp(o.x,WT.cx-h,WT.cx+h); o.z=clamp(o.z,WT.cz-h,WT.cz+h); } return; } const L=65; if(progress.exit&&o.z<-65.4){ o.x=clamp(o.x,-3.2,3.2); o.z=Math.max(o.z,-79); } else { o.x=clamp(o.x,-L,L); o.z=clamp(o.z,-L,L); } }
 function segBox(x1,z1,x2,z2,c){ let t0=0,t1=1; const dx=x2-x1,dz=z2-z1;
   if(Math.abs(dx)<1e-9){ if(x1<c.x1||x1>c.x2)return false; } else { let a=(c.x1-x1)/dx,b=(c.x2-x1)/dx; if(a>b){const t=a;a=b;b=t;} t0=Math.max(t0,a); t1=Math.min(t1,b); if(t0>t1)return false; }
   if(Math.abs(dz)<1e-9){ if(z1<c.z1||z1>c.z2)return false; } else { let a=(c.z1-z1)/dz,b=(c.z2-z1)/dz; if(a>b){const t=a;a=b;b=t;} t0=Math.max(t0,a); t1=Math.min(t1,b); if(t0>t1)return false; }
@@ -1117,7 +1836,7 @@ const keys={}; let mouseDown=false;
 function enterHide(h){ MPS.tp=true; player.hidden=true; player.hideSpot=h; player.x=h.x; player.z=h.z; player.flash=false; msg('Saklandın. Çıkmak için [E].',3); }
 function exitHide(forced){ MPS.tp=true; const h=player.hideSpot; player.hidden=false; if(h){player.x=h.ex;player.z=h.ez;} player.hideSpot=null; if(forced)msg('Seni buldu!',2); }
 function updatePlayer(dt){
-  const moving=state==='playing'&&!player.hidden;
+  const moving=state==='playing'&&!player.hidden&&!BOSSC.down;
   let fw=0,rt=0; if(moving){ if(keys.KeyW)fw+=1; if(keys.KeyS)fw-=1; if(keys.KeyD)rt+=1; if(keys.KeyA)rt-=1; fw-=touch.jy; rt+=touch.jx; }
   const want=Math.hypot(fw,rt); player.sprinting=false;
   let spd=3.0; if(player.crouch)spd=1.5;
@@ -1131,12 +1850,12 @@ function updatePlayer(dt){
   if(player.sprinting){ player.stam-=11*dt; if(player.stam<=0){player.stam=0;player.exhausted=true;} } else { player.stam=Math.min(100,player.stam+(want>0?9:15)*dt); if(player.exhausted&&player.stam>=30)player.exhausted=false; }
   const g=(player.x>-3.6&&player.x<3.6&&player.z>48.9&&player.z<61.8)?0.15:0;
   if(MPS.fly){ let vv=0; if(moving){ if(keys.Space||touch.up)vv+=1; if(keys.KeyZ||touch.dn)vv-=1; } player.vy=0; player.y=clamp(player.y+vv*7*dt,g,40); } else { player.vy-=22*dt; player.y+=player.vy*dt; if(player.y<=g){player.y=g;player.vy=0;} }
-  const eyeT=player.hidden?player.hideSpot.cy:(player.crouch?1.05:1.65); player.eye=lerp(player.eye,eyeT,Math.min(1,dt*9));
+  const eyeT=player.hidden?player.hideSpot.cy:(BOSSC.down?0.35:(player.crouch?1.05:1.65)); player.eye=lerp(player.eye,eyeT,Math.min(1,dt*9));
   const bob=(settings.bob&&want>0)?Math.sin(player.bobT)*(player.sprinting?0.06:0.035):0;
   player.shake=Math.max(0,player.shake-dt*2);
   const sh=player.shake>0?player.shake*0.04:0;
   cam.position.set(player.x+(Math.random()-0.5)*sh,player.y+player.eye+bob+(Math.random()-0.5)*sh,player.z+(Math.random()-0.5)*sh);
-  cam.rotation.set(player.pitch,player.yaw,0,'YXZ');
+  cam.rotation.set(player.pitch,player.yaw,BOSSC.down?0.9:0,'YXZ');
   moon.target.position.set(player.x,0,player.z); moon.position.set(player.x-35,70,player.z-25);
   /* el feneri */
   if(player.flash&&progress.light){ progress.bt=Math.max(0,progress.bt-0.45*dt); if(progress.bt<=0){player.flash=false;msg('Pil bitti!',3);} }
@@ -1186,7 +1905,7 @@ const WPS=[[0,40],[0,30],[0,15],[0,0],[0,-15],[0,-30],[0,-45],[0,-58],[-25,0],[-
 const DARK=[{x:36,z:-47,p:1},{x:30,z:-54,p:1},{x:-48,z:-48},{x:-46,z:-47},{x:31,z:40},{x:-52,z:-24},{x:-44,z:32},{x:48,z:-30},{x:-56,z:-50},{x:20,z:22}];
 const HUTPERI=[[-6,46],[6,46],[6,56],[-6,56],[0,45],[-6,50],[6,50]];
 function placeMon(m,x,z){ const c=nearestFree(Math.floor(x-GX0),Math.floor(z-GZ0)); if(c){x=GX0+c[0]+0.5;z=GZ0+c[1]+0.5;} m.x=x; m.z=z; m.active=true; m.rig.g.visible=true; m.state='patrol'; m.path=null; m.lostT=0; m.bang=0; m.search=[]; m.siege=null; m.patrolT=0; m.rig.g.position.set(x,0,z); }
-function hideMon(m){ m.active=false; m.rig.g.visible=false; }
+function hideMon(m){ if(m.frozen>0||m.freezeImm>0){ m.frozen=0; m.freezeImm=0; setFrost(m,false); } m.active=false; m.rig.g.visible=false; }
 function setPathTo(m,x,z){ const r=findPath(m.x,m.z,x,z); if(r){ m.path=r.pts; m.pi=1; m.reached=r.reached; } else { m.path=null; m.reached=false; } }
 function follow(m,dt,speed){ if(!m.path||m.pi>=m.path.length)return true; let moved=0;
   while(m.pi<m.path.length){ const p=m.path[m.pi],dx=p.x-m.x,dz=p.z-m.z,d=Math.hypot(dx,dz); if(d<0.45){m.pi++;continue;}
@@ -1206,6 +1925,7 @@ function newPatrol(m){ let w=null,t=0;
   if(!w){ while(t++<14){ const p=pick(WPS); if(p.power&&!progress.gateTunnel)continue; if(Math.hypot(p.x-m.x,p.z-m.z)<12)continue; w=p; break; } if(!w)w=pick(WPS); }
   m.tx=w.x; m.tz=w.z; setPathTo(m,w.x,w.z); m.look=m.look||rnd(0.5,2); }
 function updMonster(m,dt){ if(!m.active)return;
+  if(m.freezeImm>0)m.freezeImm-=dt; if(m.frozen>0){ m.frozen-=dt; if(m.frozen<=0){ m.frozen=0; m.freezeImm=BCORE.FREEZE_IMMUNE; setFrost(m,false); } m.moved=0; return; }
   const pd=Math.hypot(player.x-m.x,player.z-m.z); m.cool-=dt; m.siegeT-=dt; m.hideCool-=dt; m.moved=0; const rage=S.final?1.12:1;
   const see=sees(m,pd);
   if(S.alertT>0&&!MPS.god&&m.state!=='chase'&&state!=='dead'){ m.alertRe=(m.alertRe||0)-dt; if(m.alertRe<=0){ m.alertRe=2.5; m.state='investigate'; m.tx=player.x; m.tz=player.z; m.path=null; m.search=[]; m.pathT=0; } }
@@ -1273,7 +1993,7 @@ function refreshItemsHUD(){ const p=progress,it=[]; if(p.light)it.push('El fener
   $('items').innerHTML=it.map(t=>'<span>'+t+'</span>').join(''); refreshObj(); }
 let msgT=0; function msg(t,s){ const e=$('msg'); e.textContent=t; e.style.opacity=1; msgT=s||3; }
 function openNote(t,x){ $('ntitle').textContent=t; $('ntext').textContent=x; show('noteView'); state='modal'; modalKind='note'; }
-function closeModal(){ hide('keypad'); hide('noteView'); hide('adminCon'); state='playing'; if(!locked&&!fallback)tryLock(); }
+function closeModal(){ hide('keypad'); hide('noteView'); hide('adminCon'); hide('techUI'); techOpen=false; state='playing'; if(!locked&&!fallback)tryLock(); }
 let kpBuf=''; const kg=$('kgrid'); for(const d of [1,2,3,4,5,6,7,8,9,0]){ const b=document.createElement('button'); b.textContent=d; b.onclick=()=>kpPress(String(d)); if(d===0)b.style.gridColumn='2'; kg.appendChild(b); }
 let kpMode='locker',kpLen=4;
 function renderKp(){ const found=[0,1,2,3].map(i=>progress.notes.includes(i+1)?CODE[i]:'_').join(' '); $('kpdisp').textContent=(kpBuf+'______').slice(0,kpLen).split('').join(' '); $('kphint').textContent=kpMode==='staff'?'Personel Odası — 6 haneli şifre':'Bulunan rakamlar: '+found; }
@@ -1337,7 +2057,7 @@ document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockE
 document.addEventListener('pointerlockerror',()=>{ lockErr++; if(lockErr>=3){ fallback=true; if(state==='paused'){state='playing';hide('pause');} msg('Fare kilidi desteklenmiyor: bakmak için fareyi basılı tutup sürükle.',5); } else if(state==='playing'){ state='paused'; show('pause'); } });
 $('pause').onclick=()=>{ if(fallback){state='playing';hide('pause');} else tryLock(); };
 canvas.addEventListener('click',()=>{ if(state==='playing'&&!locked&&!fallback)tryLock(); });
-addEventListener('mousedown',e=>{mouseDown=true; if(e.button===0&&state==='playing'&&(locked||fallback)&&MPS.equipped&&e.target===canvas)hammerUse();}); addEventListener('mouseup',()=>{mouseDown=false;});
+addEventListener('mousedown',e=>{mouseDown=true; if(e.button===0&&state==='playing'&&(locked||fallback)&&e.target===canvas){ if(MPS.equipped)hammerUse(); else if(curW)weaponUse(); }}); addEventListener('mouseup',()=>{mouseDown=false;});
 document.addEventListener('mousemove',e=>{ if(state!=='playing')return; if(!(locked||(fallback&&mouseDown)))return; player.yaw-=e.movementX*0.0022*settings.sens; player.pitch=clamp(player.pitch-e.movementY*0.0022*settings.sens,-1.5,1.5); });
 addEventListener('keydown',e=>{ if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return; keys[e.code]=true;
   if(['Space','ArrowUp','ArrowDown','Tab'].includes(e.code)&&state!=='menu')e.preventDefault();
@@ -1346,7 +2066,7 @@ addEventListener('keydown',e=>{ if(e.target&&(e.target.tagName==='INPUT'||e.targ
   if(state==='modal'){ if(modalKind==='keypad'){ if(/^Digit\d$/.test(e.code))kpPress(e.code.slice(5)); else if(/^Numpad\d$/.test(e.code))kpPress(e.code.slice(6)); else if(e.code==='Backspace'){kpBuf=kpBuf.slice(0,-1);renderKp();} else if(e.code==='Enter'||e.code==='NumpadEnter')kpEnter(); else if(e.code==='Escape')closeModal(); }
     else if(['KeyE','Escape','Enter','Space'].includes(e.code))closeModal(); return; }
   if(state!=='playing')return;
-  if(e.code==='KeyE'&&!e.repeat)interact(); else if(adminKey(e)){}
+  if(e.code==='KeyE'&&!e.repeat)interact(); else if(adminKey(e)){} else if(weaponKey(e)){}
   else if(e.code==='KeyF'&&!e.repeat){ if(player.hidden)return; if(!progress.light){msg('El fenerin yok. Masanın üstünde.',2.5);return;} if(progress.bt<=0){msg('Pil bitti!',2);SFX.err();return;} player.flash=!player.flash; SFX.click(); }
   else if(e.code==='KeyC'&&!e.repeat&&!player.hidden){ player.crouch=!player.crouch; } });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
@@ -1355,14 +2075,15 @@ addEventListener('blur',()=>{ for(const k in keys)keys[k]=false; });
 function simulate(dt){ playTime+=dt; S.t+=dt;
   updatePlayer(dt); updateDoor(dt); updateStaff(dt); remoteTick(dt);
   if(!progress.outage&&progress.power&&playTime>55&&progress.light)doOutage(); else if(!progress.outage&&progress.power&&playTime>110)doOutage();
-  updMonster(m1,dt); updM2Spawn(dt); updMonster(m2,dt);
+  if(BOSSC.zone==='park'){ updMonster(m1,dt); updM2Spawn(dt); updMonster(m2,dt); }
+  updBossSystem(dt);
   updateEvents(dt); updateLamps(dt,player); animate(dt); updateInteract(); updateHUD(dt); updateAudioLoops(dt);
   if(progress.exit&&player.z<-70&&state!=='dead')winGame();
   if(S.t%20<dt)saveGame(); }
 function winGame(){ state='win'; try{document.exitPointerLock();}catch(e){} hide('hud'); hide('camui'); SFX.win(); S.alarmT=0; const m=Math.floor(playTime/60),s=Math.floor(playTime%60);
   $('winTxt').innerHTML='Ana kapı ardında kapanırken lunaparkın ışıkları bir bir söndü. Nöbet bitti.<br>Ama uzaktan gelen o ses, adını mı söyledi?<br><br>Süre: '+m+' dk '+s+' sn &nbsp;•&nbsp; Yakalanma: '+deaths; show('win'); if(!MPS.active)clearSave(); }
 function startGame(isNew,mp){ initAudio(); if(mp){ progress=defProg(); playTime=0; deaths=0; } else if(isNew){ clearSave(); progress=defProg(); playTime=0; deaths=0; } else loadSave();
-  applyProgress(); S.hutLight=true; S.final=progress.sys; S.alarmT=0; S.alertT=0; if(progress.exit){ progress.exit=false; gate.prog=0; gate.left.position.x=-1.8; gate.right.position.x=1.8; gate.col.on=true; S.gateOpening=false; rebuildNav(); }
+  applyProgress(); bossReset(); if(mp){ mpw.gold=0; mpw.w=[]; } refreshWbar(); refreshGold(); S.hutLight=true; S.final=progress.sys; S.alarmT=0; S.alertT=0; if(progress.exit){ progress.exit=false; gate.prog=0; gate.left.position.x=-1.8; gate.right.position.x=1.8; gate.col.on=true; S.gateOpening=false; rebuildNav(); }
   if(progress.power===false)setPower(false); setStaffDoor(MPS.active?MPS.staffOpen:false); resetActors(); if(mp&&MPS.spawn){ player.x=MPS.spawn.x; player.y=MPS.spawn.y||0; player.z=MPS.spawn.z; player.yaw=MPS.spawn.yaw||0; } scene.fog.density=0.027; hide('menu'); show('hud'); state='playing'; if(!fallback)tryLock(); refreshItemsHUD();
   msg(progress.light?'Nöbet başladı. Kapıyı kapalı tut.':'Masadaki notu ve el fenerini al. [E] etkileşim • [F] fener • [TAB] notlar',6); }
 $('bStart').onclick=()=>startGame(false);
@@ -1422,7 +2143,8 @@ function openPauseMenu(){ if(state!=='playing')return; state='paused'; show('pau
   tb('tRun',el=>{ touch.run=!touch.run; el.classList.toggle('on',touch.run); });
   tb('tCr',el=>{ if(state==='playing'&&!player.hidden){ player.crouch=!player.crouch; el.classList.toggle('on',player.crouch); } });
   tb('tJ',()=>{ if(state==='playing'||!$('journal').classList.contains('hid'))toggleJournal(); });
-  tb('tHit',()=>{ if(state==='playing')hammerUse(); });
+  tb('tHit',()=>{ if(state==='playing'){ if(MPS.equipped)hammerUse(); else weaponUse(); } },null);
+  { const th=$('tHit'); th.addEventListener('pointerdown',()=>{ touchHit=true; }); const tu=()=>{ touchHit=false; }; th.addEventListener('pointerup',tu); th.addEventListener('pointercancel',tu); }
   tb('tUp',el=>{ touch.up=true; el.classList.add('on'); },el=>{ touch.up=false; el.classList.remove('on'); });
   tb('tDn',el=>{ touch.dn=true; el.classList.add('on'); },el=>{ touch.dn=false; el.classList.remove('on'); });
   tb('tChat',()=>{ if(state==='playing')openChat(); });
@@ -1435,7 +2157,7 @@ function openPauseMenu(){ if(state!=='playing')return; state='paused'; show('pau
 $('noteView').onclick=()=>{ if(state==='modal'&&modalKind==='note')closeModal(); };
 $('journal').onclick=()=>toggleJournal();
 $('pLeave').onclick=ev=>{ ev.stopPropagation(); if(MPS.net)MPS.net.leave(); location.reload(); };
-$('acClose').onclick=()=>closeModal();
+$('acClose').onclick=()=>closeModal(); $('techClose').onclick=()=>closeModal(); $('acBossStart').onclick=startBossAdmin; $('acGoldGive').onclick=giveGoldAdmin;
 $('acCams').onclick=()=>{ closeModal(); enterCam(true); };
 $('acPov').onclick=()=>{ closeModal(); enterCam(true,CAMS.length); };
 $('acFly').onchange=e=>toggleFlag('fly',e.target.checked); $('acNoclip').onchange=e=>toggleFlag('noclip',e.target.checked); $('acGod').onchange=e=>toggleFlag('god',e.target.checked); $('acTStaff').onchange=e=>toggleTag('staff',e.target.checked); $('acTDev').onchange=e=>toggleTag('dev',e.target.checked); $('acTOwner').onchange=e=>toggleTag('owner',e.target.checked);
@@ -1449,13 +2171,20 @@ window.NobetciAPI={
     MPS.active=true; MPS.spawn=spawn||null; MPS.owned={kick:false,ban:false,jumpscare:false}; setEquipped(null); MPS.fly=MPS.noclip=MPS.god=false;
     document.body.classList.add('mp'); startGame(true,true);
   },
-  freeze(){ state='menu'; hide('hud'); hide('camui'); hide('pause'); hide('keypad'); hide('noteView'); hide('adminCon'); hide('journal'); MPS.active=false; remoteClear(); setEquipped(null); try{document.exitPointerLock();}catch(e){} document.body.classList.remove('mp'); },
+  freeze(){ bossReset(); mpw.gold=0; mpw.w=[]; curW=null; state='menu'; hide('hud'); hide('camui'); hide('pause'); hide('keypad'); hide('noteView'); hide('adminCon'); hide('techUI'); hide('journal'); MPS.active=false; remoteClear(); setEquipped(null); try{document.exitPointerLock();}catch(e){} document.body.classList.remove('mp'); },
   getPlayer(){ return player; },
   toggleFlag,equipHammer,pickupHammer,
   getMonsters(){ return MONS; },
   setNet(n){ MPS.net=n; },
   setSelf(id){ MPS.selfId=id; },
   setAdmin(v){ v=!!v; if(MPS.admin&&!v){ MPS.fly=MPS.noclip=MPS.god=false; MPS.tags={staff:false,dev:false,owner:false}; } MPS.admin=v; },
+  getColliders(){ return colliders; },
+  dbg:{BOSSC,SPB,TW,BCORE,weaponUse,equipWeapon,spStartBoss,openTech,buyItem},
+  setTech(d){ if(!d)return; mpw.gold=Math.max(0,d.gold|0); mpw.w=Array.isArray(d.weapons)?d.weapons.filter(id=>BCORE.WEAPONS[id]):[]; if(curW&&!mpw.w.includes(curW))unequipWeapon(); refreshGold(); refreshWbar(); if(techOpen)renderTech(); },
+  bossState(s){ if(s&&s.b){ BOSSC.snap=s; BOSSC.newSnap=true; BOSSC.snapAt=performance.now(); } },
+  bossFx(e){ if(e)bossFx(e); }, bossHurt(d){ bossHurt(d&&d.k); }, bossDown(d){ if(d&&d.id!==MPS.selfId)msg((d.name||'Oyuncu')+' öldü!',2.5); }, bossEnd(d){ bossEnd(d&&d.result); if(d&&d.result!=='win')BOSSC.snap=BOSSC.snap; },
+  bossWarn(d){ if(d)msg('Boss savaşı '+d.in+' saniye sonra başlıyor!',4); },
+  bossTeleport(d){ if(d&&typeof d.x==='number'&&typeof d.z==='number')doTeleport(d,d.zone==='wait'||d.zone==='arena'?d.zone:'park'); },
   setTags(tg){ tg|=0; const t={staff:!!(tg&1),dev:!!(tg&2),owner:!!(tg&4)}; if(t.staff!==MPS.tags.staff||t.dev!==MPS.tags.dev||t.owner!==MPS.tags.owner){ MPS.tags=t; syncAC(); } },
   setStaffOpen(b){ MPS.staffOpen=!!b; setStaffDoor(b); },
   remoteSync,remoteSnap,remoteRemove,remoteClear,

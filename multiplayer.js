@@ -52,6 +52,11 @@
     pickup: (type, cb) => emitAck('hammer:pickup', { type }, cb),
     equip: (type, cb) => emitAck('hammer:equip', { type }, cb),
     hit: (targetId, cb) => emitAck('hammer:hit', { targetId }, cb),
+    buy: (item, cb) => emitAck('shop:buy', { item }, cb),
+    attack: (w, yaw, pitch, cb) => emitAck('weapon:attack', { w, yaw, pitch }, cb),
+    bossStart: cb => emitAck('boss:start', {}, cb),
+    bossInfo: cb => emitAck('boss:info', {}, cb),
+    giveGold: (target, amount, cb) => emitAck('admin:gold', { target, amount }, cb),
     chat: text => emitAck('chat:send', { text }, () => {}),
     leave: () => { S.leaving = true; if (S.sock) S.sock.emit('room:leave'); }
   };
@@ -64,11 +69,28 @@
     while (log.children.length > 40) log.removeChild(log.firstChild);
     log.scrollTop = log.scrollHeight;
   }
-  function showExpelled(title, text) {
+  function showExpelled(title, text, banned) {
     S.leaving = true; S.inGame = false; stopSend(); API.freeze();
     hide('lobby'); hide('mpMenu'); hide('netstat');
-    $('kTitle').textContent = title; $('kText').textContent = text; show('kicked');
+    $('kTitle').textContent = title; $('kText').textContent = text;
+    $('kUnbanMsg').textContent = ''; $('kPass').value = '';
+    if (banned) show('kUnban'); else hide('kUnban');
+    show('kicked');
   }
+  /* Ban açma: şifre sunucuya gönderilir ve yalnızca orada doğrulanır (istemcide şifre yok). */
+  async function tryUnban() {
+    const code = $('kPass').value, msg = $('kUnbanMsg'); if (!code) { msg.textContent = 'Şifreyi yaz.'; return; }
+    $('kUnbanGo').disabled = true; msg.textContent = 'Kontrol ediliyor…';
+    try {
+      const r = await fetch('/api/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: getCid(), code }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) { msg.textContent = 'Ban kaldırıldı! Ana menüye dönülüyor…'; setTimeout(() => location.reload(), 1200); return; }
+      msg.textContent = j.error || 'Başarısız.';
+    } catch (e) { msg.textContent = 'Sunucuya ulaşılamadı.'; }
+    $('kUnbanGo').disabled = false;
+  }
+  $('kUnbanGo').onclick = tryUnban;
+  $('kPass').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') tryUnban(); });
   $('kBack').onclick = () => location.reload();
 
   function renderLobby() {
@@ -150,7 +172,7 @@
     sock.on('disconnect', reason => { stopPing(); if (S.leaving) return; setNet('offline'); if (S.code) S.dropped = true; if (reason === 'io server disconnect') setTimeout(() => { if (S.sock === sock && !S.leaving) sock.connect(); }, 1000); });
     sock.io.on('reconnect_attempt', () => { if (!S.leaving) setNet(S.dropped ? 'offline' : 'connecting'); });
     sock.on('connect_error', err => {
-      if (err && err.message === 'banned') { sock.disconnect(); S.sock = null; hideNet(); showExpelled('ENGELLENDİN', 'Bu sunucudan kalıcı olarak engellendin.'); return; }
+      if (err && err.message === 'banned') { sock.disconnect(); S.sock = null; hideNet(); showExpelled('ENGELLENDİN', 'Bu sunucudan kalıcı olarak engellendin.', true); return; }
       setNet(S.dropped ? 'offline' : 'connecting'); if (!S.code) mpMsg('Sunucuya ulaşılamıyor… yeniden deneniyor.');
     });
     sock.on('room:update', room => {
@@ -170,8 +192,17 @@
     sock.on('staff:open', () => { API.setAdmin(true); API.setStaffOpen(true); });   // yalnızca şifreyi giren oyuncuya gelir; başkalarının kapısı kapalı kalır
     sock.on('correct', d => { if (S.inGame && d) API.teleport(d.x, d.y, d.z); });
     sock.on('jumpscare', () => API.jumpscare());
+    /* teknoloji ağacı + boss: tüm kararlar sunucuda; burada yalnızca gösterilir */
+    sock.on('tech:update', d => API.setTech(d));
+    sock.on('boss:state', d => { if (S.inGame) API.bossState(d); });
+    sock.on('boss:fx', d => { if (S.inGame) API.bossFx(d); });
+    sock.on('boss:hurt', d => { if (S.inGame) API.bossHurt(d); });
+    sock.on('boss:down', d => { if (S.inGame) API.bossDown(d); });
+    sock.on('boss:end', d => { if (S.inGame) API.bossEnd(d); });
+    sock.on('boss:warn', d => { if (S.inGame) API.bossWarn(d); });
+    sock.on('teleport', d => { if (S.inGame) API.bossTeleport(d); });
     sock.on('kicked', d => showExpelled('ODADAN ATILDIN', (d && d.by ? d.by : 'Oyun sahibi') + ' seni odadan attı. İstersen tekrar katılabilirsin.'));
-    sock.on('banned', d => showExpelled('ENGELLENDİN', (d && d.by ? d.by : 'Oyun sahibi') + ' seni sunucudan engelledi.'));
+    sock.on('banned', d => showExpelled('ENGELLENDİN', (d && d.by ? d.by : 'Oyun sahibi') + ' seni sunucudan engelledi.', true));
     return sock;
   }
 
