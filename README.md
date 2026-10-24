@@ -28,21 +28,8 @@ veya `server.config.example.json` dosyasını `server.config.json` olarak kopyal
 
 - Anahtar yoksa ya da 8 karakterden kısa / örnek değerse, sunucu o çalıştırma için rastgele bir anahtar üretir ve konsola yazar.
 - Anahtarı **Multiplayer menüsündeki "Sahip anahtarı"** alanına yazarak odaya girersin. Doğrulama sunucuda yapılır (zaman-sabit karşılaştırma, hatalı denemelerde geçici kilit).
-- **Staff Room şifresi (292016) yönetici yetkisi verir:** keypad'e doğru kodu giren oyuncu (sunucu kodu ve keypad'e yakınlığı doğrular) o odada yönetici olur. Sahip anahtarı (OWNER_KEY) girmek de yönetici yapar; ikisi birbirinden bağımsız çalışır. Dikkat: kodu bilen herkes yönetici olabilir, o yüzden `STAFF_CODE` ile kodu değiştirebilirsin.
 
-Diğer ayarlar (ortam değişkeni ya da config): `PORT`, `STAFF_CODE`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `BANS_FILE` (varsayılan `data/bans.json`).
-
-## İki tarayıcıyla test
-
-1. `OWNER_KEY=deneme-anahtari-123 npm start`
-2. Tarayıcı A: `http://localhost:3000` → **MULTIPLAYER** → isim yaz, **Sahip anahtarı** alanına `deneme-anahtari-123` → **ODA KUR**. 5 harfli oda kodunu not al.
-3. Tarayıcı B (gizli pencere): isim yaz, anahtarı **boş bırak**, oda kodunu gir → **KATIL**.
-4. A'da lobide B'yi gör, sohbeti dene, **BAŞLAT** (sadece host).
-5. Oyunda birbirinizin avatarını görün. B kapanınca avatarı kaybolur.
-6. Staff Room: A veya B, hut'un arkasındaki odanın dış keypad'ine `292016` girer → yönetici olur, içeri girer, çekiçleri alır. (Sahip anahtarı şart değil.)
-7. A bir çekiç seçip (1/2/3) B'ye bakıp **VUR** (veya sol tık) yapar. Kick: B odadan atılır, kodla tekrar girebilir. Ban: B kalıcı yasaklanır (sunucu yeniden başlasa da). Şifreyi girmemiş oyuncu çekiç alamaz.
-
-Ban listesini sıfırlamak için `data/bans.json` dosyasını sil.
+- 
 
 ## Kontroller
 
