@@ -106,6 +106,7 @@ function post(url, body, headers) {
   const tArena = await waitFor(adm, 'teleport', t => t.zone === 'arena', 6000); assert(C.zoneOf(tArena.x, tArena.z) === 'arena'); ok('geri sayım bitince boss arenasına alındı');
   const st0 = await waitFor(adm, 'boss:state', st => st.ph === 'fight'); const bx0 = st0.b.x, bz0 = st0.b.z;
   assert(bx0 === C.ARENA.bossX && bz0 === C.ARENA.bossZ); ok('boss arenada sabit konumda doğdu');
+  room.boss.T.summonChance = 0;   // bu bölümde rastgele mini boss çıkmasın (sonuç deterministik); mini boss H3'te ayrıca test edilir
   r = await call(pl, 'weapon:attack', { w: 'sling', yaw: 0, pitch: 0 }); assert(!r.ok); ok('savaşta olmayan oyuncu saldıramaz');
   console.log('H2) Arena teknoloji ağaçları (sol/sağ)');
   let apos = { x: tArena.x, z: tArena.z };
@@ -157,6 +158,30 @@ function post(url, body, headers) {
   const homeL = await waitFor(adm, 'teleport', t => t.zone === 'park', 5000); assert(homeL.z > 40); ok('yenilgide de oyuncular eve gönderildi, canları yenilendi');
   assert.strictEqual(s.rooms.get(code).players.get(adm.id).bhp, 100); ok('boss canı (bhp) sıfırlandı');
   const w = s.rooms.get(code).wallets; assert([...w.values()].every(x => x.weapons.size >= 0)); ok('cüzdan (altın + silahlar) oturum bittikten sonra korundu');
+  console.log('J) Mini boss çağırma saldırısı (sunucu karar verir)');
+  adminSpot = { x: homeL.x, z: homeL.z }; await fly(adm, adminSpot, { x: 0, z: 58 }); adminSpot = { x: 0, z: 58 };
+  r = await call(adm, 'boss:start', {}); assert(r.ok);
+  await waitFor(adm, 'boss:state', st => st.ph === 'portal', 6000);
+  await fly(adm, adminSpot, { x: C.PORTAL.x, z: C.PORTAL.z });
+  await waitFor(adm, 'teleport', t => t.zone === 'wait', 4000); const tA3 = await waitFor(adm, 'teleport', t => t.zone === 'arena', 6000);
+  await waitFor(adm, 'boss:state', st => st.ph === 'fight'); adm.events.length = 0; await sleep(300);
+  const bs3 = room.boss; bs3.T.summonWarn = 1.2; bs3.next = ['summon']; bs3.boss.st = 'idle'; bs3.boss.stT = 99;
+  const sw = await waitFor(adm, 'boss:fx', e => e.t === 'fx' && e.k === 'summonWind', 2000); assert(sw.pts.length >= 3); ok('mini boss çağırma uyarısı tüm oyunculara yayıldı (' + sw.pts.length + ' doğma noktası)');
+  const stW = await waitFor(adm, 'boss:state', st => st.b.st === 'summonWind', 1000); assert(stW.sp.length >= 3 && stW.m.length === 0); ok('uyarı sırasında anlık görüntüde doğma noktaları var, mini YOK');
+  const stM = await waitFor(adm, 'boss:state', st => st.m.length >= 3, 4000); ok('uyarıdan sonra ' + stM.m.length + ' mini boss çıktı (anlık görüntüde)');
+  const hpB = room.boss.boss.hp; const pp = room.players.get(adm.id);
+  await waitFor(adm, 'boss:state', st => st.m.some(q => q[5] === 'chase'), 3000);
+  const m0 = room.boss.minis[0]; m0.x = pp.x; m0.z = pp.z - 3; m0.hp = 10; m0.st = 'chase'; m0.cd = 5;
+  const goldB = (await call(adm, 'boss:info', {})).gold;
+  r = await call(adm, 'weapon:attack', { w: 'gun', yaw: 0, pitch: 0 }); assert(r.ok && r.hit && r.mini === true && r.killed === true); ok('silah mini boss\'a isabet etti ve onu öldürdü (sunucu hesapladı)');
+  const goldA = (await call(adm, 'boss:info', {})).gold; assert.strictEqual(goldA - goldB, Math.round(10 * 0.25) + C.MINI.killGold); ok('mini ölüm altını: ' + (goldA - goldB) + ' (hasar altını + ' + C.MINI.killGold + ')');
+  assert.strictEqual(room.boss.boss.hp, hpB); ok('mini boss vuruşu boss canından düşmedi');
+  const mh = await waitFor(adm, 'boss:hurt', e => e.k === 'mini', 9000); assert(mh.dmg === C.MINI.dmg && mh.hp === 100 - C.MINI.dmg); ok('mini boss saldırısı öldürücü değil: ' + C.MINI.dmg + ' hasar, can ' + mh.hp);
+  assert(!adm.events.some(e => e[0] === 'boss:down')); ok('ilk vuruşta ölüm yok');
+  room.boss.next = [];
+  { const BC = C; BC.applyDamage(room.boss, adm.id, 1e9); }
+  await waitFor(adm, 'boss:end', null, 3000); await sleep(300); assert.strictEqual(room.boss ? room.boss.minis.length : 0, 0); ok('boss ölünce mini bosslar temizlendi');
+  await waitFor(adm, 'teleport', t => t.zone === 'park', 8000);
   await new Promise(r => s.close(r));
 
   console.log('\nBoss/sunucu testleri geçti: ' + passed);

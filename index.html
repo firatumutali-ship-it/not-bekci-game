@@ -367,6 +367,10 @@ body.lowfx #fxg{display:none}
     waveWarn: 1.8,        // SES DALGASI: hazırlık/uyarı süresi (yön bu sırada kilitlenir)
     idle: 1.3, idleRage: 0.8,   // saldırılar arası bekleme (boss %50 canın altında hızlanır)
     tired: 2.6,           // ses dalgasından sonra nefes nefese (hasar ×1.5)
+    summonWarn: 2.0,      // MİNİ BOSS ÇAĞIRMA: boss kollarını kaldırır, doğma noktaları işaretlenir (hasar YOK)
+    summonEnd: 1.4,       // çağırdıktan sonra toparlanma
+    summonCool: 30,       // iki çağırma arası en az süre (boss bunu SIK yapmaz)
+    summonChance: 0.22,   // uygun olduğunda her saldırı seçiminde şans
     fightMax: 420,        // süre dolarsa boss kazanır
     endDelay: 8,          // bittikten sonra eve dönüş
     autoEvery: 1800       // otomatik başlatma: 30 dk
@@ -376,6 +380,9 @@ body.lowfx #fxg{display:none}
   const PUNCH = { width: 10, overlap: 1, depth: 16, back: 2, lag: 0.35 };       // lag: gecikme toleransı (öldürücü alan görselden bu kadar içeride)
   const WAVE = { speed: 14, range: 40, halfW: 2.4, thick: 2.2, maxAngle: 1.1, lag: 0.35 };
   const PILLARS = [ { x: ARENA_CX - 9, z: 0, r: 1.5 }, { x: ARENA_CX + 9, z: 0, r: 1.5 }, { x: ARENA_CX - 15, z: 7, r: 1.5 }, { x: ARENA_CX + 15, z: 7, r: 1.5 } ];
+
+  /* Mini boss: boss'un ara sıra çağırdığı küçük palyaçolar. Oyunculara koşup yakın dövüşle saldırır (öldürücü DEĞİL, hasar verir). */
+  const MINI = { hp: 120, speed: 4.0, r: 0.75, h: 2.4, reach: 1.7, windup: 0.55, strike: 0.25, cd: 1.4, dmg: 34, rise: 1.1, killGold: 25, hitGoldRate: 0.25, maxAlive: 6, front: 9 };
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const rectOf = z => ({ x1: z.cx - z.half - 1.5, x2: z.cx + z.half + 1.5, z1: z.cz - z.half - 1.5, z2: z.cz + z.half + 1.5 });
@@ -399,7 +406,8 @@ body.lowfx #fxg{display:none}
       portal: 0, countdown: null, part: new Set(), entered: new Set(), q: [], homed: false,
       next: (opts.script || []).slice(), rand: opts.rand || Math.random,
       boss: { x: 0, z: -24, yaw: 0, st: 'walk', stT: 0, hp: 0, maxHp: 0, r: BOSS.r, h: BOSS.h, vis: true,
-              side: 'R', wd: 0, wf: 0, wl: 0, hit: new Set(), last: [], dmgBy: {} }
+              side: 'R', wd: 0, wf: 0, wl: 0, hit: new Set(), last: [], dmgBy: {} },
+      minis: [], miniSeq: 0, lastSummon: -1e9, spawnPts: []
     };
   }
 
@@ -452,7 +460,7 @@ body.lowfx #fxg{display:none}
     }
     else if (S.phase === 'fight') {
       const alive = players.filter(p => p.zone === 'arena' && p.alive !== false && S.part.has(p.id));
-      if (b.hp > 0) bossAI(S, dt, alive, ev);
+      if (b.hp > 0) { bossAI(S, dt, alive, ev); miniAI(S, dt, alive, ev); }
       if (b.hp <= 0) { /* applyDamage zaten sonucu ayarladı */ }
       else if (!alive.length) { finish(S, 'lose', ev); }
       else if (S.t >= T.fightMax) { finish(S, 'lose', ev); }
@@ -469,7 +477,7 @@ body.lowfx #fxg{display:none}
 
   function finish(S, result, ev) {
     if (S.phase === 'end') return;
-    S.result = result; S.phase = 'end'; S.t = 0; (ev || S.q).push({ t: 'end', result });
+    S.result = result; S.phase = 'end'; S.t = 0; S.minis = []; (ev || S.q).push({ t: 'end', result });
     if (result === 'win') (ev || S.q).push({ t: 'rewards', gold: rewards(S) });
   }
   function rewards(S) { const g = {}; for (const id of S.part) g[id] = BOSS.winGold; return g; }
@@ -499,6 +507,47 @@ body.lowfx #fxg{display:none}
     return { ox, oz, ux, uz, len: Math.max(0, len) };
   }
 
+  function miniSpawnPoints(n) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push({ x: ARENA.cx + (i - (n - 1) / 2) * 3.8, z: ARENA.bossZ + MINI.front + (i % 2) * 1.6 });
+    return out;
+  }
+  function miniPush(m) {
+    const lim = ARENA.half - 1.2;
+    m.x = clamp(m.x, ARENA.cx - lim, ARENA.cx + lim); m.z = clamp(m.z, ARENA.cz - lim, ARENA.cz + lim);
+    for (const P of PILLARS) { const dx = m.x - P.x, dz = m.z - P.z, d = Math.hypot(dx, dz), min = P.r + MINI.r; if (d < min) { const k = d > 1e-4 ? min / d : 1; m.x = P.x + (d > 1e-4 ? dx * k : min); m.z = P.z + (d > 1e-4 ? dz * k : 0); } }
+    const bx = m.x - ARENA.bossX, bz = m.z - ARENA.bossZ, bd = Math.hypot(bx, bz), bm = BOSS.r + MINI.r;
+    if (bd < bm && bd > 1e-4) { m.x = ARENA.bossX + bx / bd * bm; m.z = ARENA.bossZ + bz / bd * bm; }
+  }
+  /* mini boss yapay zekası (sunucu karar verir): en yakın canlı oyuncuya koş → 0.55 sn uyarı (hasar YOK) → vuruş */
+  function miniAI(S, dt, alive, ev) {
+    for (const m of S.minis) {
+      m.stT += dt;
+      if (m.st === 'rise') { if (m.stT >= MINI.rise) { m.st = 'chase'; m.stT = 0; } continue; }
+      let tg = null, td = 1e9;
+      for (const p of alive) { const d = Math.hypot(p.x - m.x, p.z - m.z); if (d < td) { td = d; tg = p; } }
+      if (m.st === 'chase') {
+        m.cd = Math.max(0, m.cd - dt);
+        if (!tg) continue;
+        m.yaw = Math.atan2(tg.x - m.x, tg.z - m.z);
+        if (td <= MINI.reach * 0.9 && m.cd <= 0) { m.st = 'wind'; m.stT = 0; m.tgt = tg.id; m.hit = false; continue; }
+        if (td > MINI.reach * 0.6) { const sp = Math.min(MINI.speed * dt, td - MINI.reach * 0.6); m.x += Math.sin(m.yaw) * sp; m.z += Math.cos(m.yaw) * sp; }
+        for (const o of S.minis) if (o !== m) { const dx = m.x - o.x, dz = m.z - o.z, d = Math.hypot(dx, dz); if (d < MINI.r * 1.8 && d > 1e-4) { const pu = (MINI.r * 1.8 - d) * 0.5; m.x += dx / d * pu; m.z += dz / d * pu; } }
+        miniPush(m);
+      }
+      else if (m.st === 'wind') {                                   // dururken kolunu kaldırır: kaçılabilir
+        if (tg) m.yaw = Math.atan2(tg.x - m.x, tg.z - m.z);
+        if (m.stT >= MINI.windup - 1e-6) {
+          m.st = 'strike'; m.stT = 0;
+          const victim = alive.filter(p => Math.hypot(p.x - m.x, p.z - m.z) <= MINI.reach + 0.3).sort((a, c) => Math.hypot(a.x - m.x, a.z - m.z) - Math.hypot(c.x - m.x, c.z - m.z))[0];
+          if (victim) ev.push({ t: 'hurt', id: victim.id, dmg: MINI.dmg, k: 'mini' });
+          ev.push({ t: 'fx', k: 'miniStrike', mid: m.id });
+        }
+      }
+      else if (m.st === 'strike') { if (m.stT >= MINI.strike) { m.st = 'chase'; m.stT = 0; m.cd = MINI.cd; } }
+    }
+  }
+
   function bossAI(S, dt, alive, ev) {
     const b = S.boss, T = S.T; b.stT += dt;
     b.x = ARENA.bossX; b.z = ARENA.bossZ; b.yaw = 0;               // SABİT: boss asla yer değiştirmez
@@ -512,10 +561,16 @@ body.lowfx #fxg{display:none}
         const L = b.last, banned = L.length >= 2 && L[0] === L[1] ? L[0] : null;
         const pool = ['L', 'R', 'wave', 'wave'].filter(x => x !== banned);   // dalga biraz daha sık
         pick = pool[Math.floor(S.rand() * pool.length) % pool.length];
+        /* ARA SIRA mini boss çağırır: bekleme dolmuş, ortada mini yok ve şansa bağlı */
+        if (alive.length && !S.minis.length && S.t - S.lastSummon >= T.summonCool && S.rand() < T.summonChance) pick = 'summon';
       }
       b.last.unshift(pick); b.last.length = Math.min(b.last.length, 2);
       b.stT = 0; b.hit = new Set();
-      if (pick === 'L' || pick === 'R') { b.side = pick; b.st = 'punchWind'; ev.push({ t: 'fx', k: 'punchWind', side: pick }); }
+      if (pick === 'summon') {
+        const n = clamp(2 + alive.length, 3, MINI.maxAlive - 1); S.spawnPts = miniSpawnPoints(n);
+        b.st = 'summonWind'; ev.push({ t: 'fx', k: 'summonWind', pts: S.spawnPts.map(q => [Math.round(q.x * 100) / 100, Math.round(q.z * 100) / 100]) });
+      }
+      else if (pick === 'L' || pick === 'R') { b.side = pick; b.st = 'punchWind'; ev.push({ t: 'fx', k: 'punchWind', side: pick }); }
       else {
         let aim = alive.length ? alive[Math.floor(S.rand() * alive.length) % alive.length] : null;
         let d = aim ? Math.atan2(aim.x - b.x, aim.z - b.z) : 0;
@@ -524,6 +579,15 @@ body.lowfx #fxg{display:none}
       }
       return;
     }
+    if (b.st === 'summonWind') {                                  // kollar havada, işaretler yanıyor: mini YOK, hasar YOK
+      if (b.stT >= T.summonWarn - EPS) {
+        b.st = 'summonEnd'; b.stT = 0; S.lastSummon = S.t;
+        for (const q of S.spawnPts) if (S.minis.length < MINI.maxAlive) S.minis.push({ id: ++S.miniSeq, x: q.x, z: q.z, yaw: 0, hp: MINI.hp, st: 'rise', stT: 0, cd: 0, tgt: null, hit: false });
+        ev.push({ t: 'fx', k: 'summon', n: S.minis.length });
+      }
+      return;
+    }
+    if (b.st === 'summonEnd') { if (b.stT >= T.summonEnd) { b.st = 'idle'; b.stT = 0; } return; }
     if (b.st === 'punchWind') {                                   // kol havada: hasar YOK
       if (b.stT >= T.punchWarn - EPS) {
         b.st = 'punch'; b.stT = 0; ev.push({ t: 'fx', k: 'punch', side: b.side });
@@ -553,13 +617,41 @@ body.lowfx #fxg{display:none}
   /* ------------------------------------------------------------ oyuncu saldırısı */
   function attackResult(S, p, wid, yaw, pitch) {
     const W = WEAPONS[wid]; if (!W || !S || S.phase !== 'fight') return null;
-    const b = S.boss; if (b.hp <= 0 || b.st === 'spawn' || b.st === 'dead') return { hit: false };
+    const b = S.boss; if (b.hp <= 0 || b.st === 'dead') return { hit: false };
+    const mh = miniHit(S, p, W, yaw, pitch), bh = (b.st === 'spawn') ? { hit: false } : bossHit(S, p, wid, W, yaw, pitch);
+    if (mh && (!bh.hit || mh.dist < bh.dist)) return { hit: true, dmg: mh.dmg, w: wid, mini: mh.id };
+    if (bh.hit) return { hit: true, dmg: bh.dmg, w: wid };
+    return { hit: false };
+  }
+  /* oyuncunun saldırısı en yakın mini bosa denk geliyor mu? (boss'tan önce kontrol edilir) */
+  function miniHit(S, p, W, yaw, pitch) {
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw); let best = null;
+    for (const m of S.minis) {
+      if (m.st === 'rise' || m.hp <= 0) continue;
+      const bx = m.x - p.x, bz = m.z - p.z, d = Math.hypot(bx, bz);
+      if (!W.ranged) {
+        const gap = d - MINI.r; if (gap > W.reach) continue;
+        if (gap > 0.3 && d > 1e-3 && (fx * bx + fz * bz) / d < 0.5) continue;
+        if (!best || d < best.dist) best = { id: m.id, dist: d, dmg: W.dmg };
+      } else {
+        const cp = Math.cos(pitch), hx = fx * cp, hz = fz * cp, hy = Math.sin(pitch), hl = Math.hypot(hx, hz); if (hl < 1e-6) continue;
+        const ux = hx / hl, uz = hz / hl, sd = bx * ux + bz * uz; if (sd <= 0) continue;
+        const perp = Math.abs(bx * uz - bz * ux); if (perp > MINI.r * 1.1) continue;
+        const s0 = sd - Math.sqrt(Math.max(0, MINI.r * MINI.r - perp * perp)); if (s0 > W.reach) continue;
+        const y = 1.6 + (hy / hl) * Math.max(0, s0); if (y < 0 || y > MINI.h) continue;
+        if (!best || s0 < best.dist) best = { id: m.id, dist: s0, dmg: W.dmg };
+      }
+    }
+    return best;
+  }
+  function bossHit(S, p, wid, W, yaw, pitch) {
+    const b = S.boss;
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw), bx = b.x - p.x, bz = b.z - p.z, d = Math.hypot(bx, bz);
     const mul = b.st === 'tired' ? 1.5 : 1;
     if (!W.ranged) {
       const gap = d - b.r; if (gap > W.reach) return { hit: false };
       if (gap > 0.3 && d > 1e-3 && (fx * bx + fz * bz) / d < 0.5) return { hit: false };
-      return { hit: true, dmg: Math.round(W.dmg * mul), w: wid };
+      return { hit: true, dmg: Math.round(W.dmg * mul), w: wid, dist: d };
     }
     const cp = Math.cos(pitch), hx = fx * cp, hz = fz * cp, hy = Math.sin(pitch), hl = Math.hypot(hx, hz);
     if (hl < 1e-6) return { hit: false };
@@ -567,15 +659,21 @@ body.lowfx #fxg{display:none}
     const perp = Math.abs(bx * uz - bz * ux); if (perp > b.r * 0.95) return { hit: false };
     const s0 = s - Math.sqrt(Math.max(0, b.r * b.r - perp * perp)); if (s0 > W.reach) return { hit: false };
     const y = 1.6 + (hy / hl) * Math.max(0, s0); if (y < 0 || y > b.h) return { hit: false };
-    return { hit: true, dmg: Math.round(W.dmg * mul), w: wid };
+    return { hit: true, dmg: Math.round(W.dmg * mul), w: wid, dist: s0 };
   }
 
   /* hasarı uygular: altın = hasar × oran. Boss ölürse oturumu 'win' ile bitirir. */
-  function applyDamage(S, id, dmg) {
+  function applyDamage(S, id, dmg, miniId) {
+    if (miniId) {
+      const m = S.minis.find(q => q.id === miniId); if (!m || m.hp <= 0 || S.phase !== 'fight') return { gold: 0, killed: false, mini: true };
+      dmg = Math.min(dmg, m.hp); m.hp -= dmg; let gold = Math.round(dmg * MINI.hitGoldRate), killed = false;
+      if (m.hp <= 0) { killed = true; gold += MINI.killGold; S.minis = S.minis.filter(q => q !== m); }
+      return { gold, killed, mini: true };
+    }
     const b = S.boss; if (S.phase !== 'fight' || b.hp <= 0) return { gold: 0, killed: false };
     dmg = Math.min(dmg, b.hp); b.hp -= dmg; b.dmgBy[id] = (b.dmgBy[id] || 0) + dmg;
     const gold = Math.round(dmg * BOSS.damageGoldRate); let killed = false;
-    if (b.hp <= 0) { b.hp = 0; b.st = 'dead'; b.stT = 0; killed = true; finish(S, 'win'); }
+    if (b.hp <= 0) { b.hp = 0; b.st = 'dead'; b.stT = 0; killed = true; S.minis = []; finish(S, 'win'); }
     return { gold, killed };
   }
 
@@ -583,10 +681,12 @@ body.lowfx #fxg{display:none}
     const b = S.boss, r2 = v => Math.round(v * 100) / 100;
     return { id: S.id, ph: S.phase, t: r2(S.t), cd: S.countdown === null ? null : r2(S.countdown), pt: r2(S.portal), res: S.result,
              b: { x: r2(b.x), z: r2(b.z), yaw: r2(b.yaw), st: b.st, sT: r2(b.stT), hp: Math.round(b.hp), mx: Math.round(b.maxHp), v: b.vis ? 1 : 0,
-               sd: b.side, wd: r2(b.wd), wf: r2(b.wf), wl: r2(b.wl) } };
+               sd: b.side, wd: r2(b.wd), wf: r2(b.wf), wl: r2(b.wl) },
+             sp: b.st === 'summonWind' ? S.spawnPts.map(q => [r2(q.x), r2(q.z)]) : [],
+             m: S.minis.map(q => [q.id, r2(q.x), r2(q.z), r2(q.yaw), Math.round(q.hp), q.st, r2(q.stT)]) };
   }
 
-  return { WEAPONS, ORDER, FREEZE_SECONDS, FREEZE_IMMUNE, PORTAL, TECH, ARENA_TECH, ARENA, WAIT, HOME, TIMING, BOSS, ZONE_RECT, PUNCH, WAVE, PILLARS, punchZone, inPunch, waveGeom,
+  return { WEAPONS, ORDER, FREEZE_SECONDS, FREEZE_IMMUNE, PORTAL, TECH, ARENA_TECH, ARENA, WAIT, HOME, TIMING, BOSS, MINI, miniSpawnPoints, ZONE_RECT, PUNCH, WAVE, PILLARS, punchZone, inPunch, waveGeom,
            zoneOf, inPortal, nearTech, waitSpawn, arenaSpawn, homeSpawn, createSession, tick, attackResult, applyDamage, snapshot, rewards };
 });
 
@@ -1493,7 +1593,7 @@ for(const [k,nm,tk] of [['tagStaff','STAFF ETİKETİ','staff'],['tagDev','DEVELO
 const mpw={gold:0,w:[]};
 const TW=()=>MPS.active?mpw:(progress.tech||(progress.tech={gold:0,w:[]}));
 const owns=id=>TW().w.includes(id);
-const BOSSC={zone:'park',snap:null,newSnap:false,st:'',sT:0,wf:0,down:false,flash:0,hpShow:1,hint:0,lastHp:-1,ended:0};
+const BOSSC={hp:100,zone:'park',snap:null,newSnap:false,st:'',sT:0,wf:0,down:false,flash:0,hpShow:1,hint:0,lastHp:-1,ended:0};
 const SPB={S:null,nextT:BCORE.TIMING.autoEvery,warned:0};
 let curW=null,wCd=0,wAnim=0,touchHit=false,techOpen=false;
 
@@ -1545,6 +1645,10 @@ Object.assign(SFX,{
   bossRoar(){tone(70,1.8,{type:'sawtooth',vol:0.5,to:32,lp:380,att:0.1});tone(55,2,{vol:0.8,to:24});nz(1.6,{f:600,vol:0.45,att:0.1});[420,610].forEach((f,i)=>tone(f,1.2,{type:'sawtooth',vol:0.07,to:f*0.4,delay:i*0.05}));},
   bossWind(x,z){const d=sp(x,z);tone(80,1.0,{type:'sawtooth',vol:0.3,to:150,lp:520,att:0.3,dest:d});nz(0.9,{f:300,vol:0.2,att:0.4,dest:d});},
   waveWind(x,z){const d=sp(x,z);tone(180,1.8,{type:'sawtooth',vol:0.16,to:980,lp:2200,att:0.6,dest:d});tone(90,1.8,{vol:0.5,to:260,dest:d,att:0.5});},
+  summonCall(x,z){const d=sp(x,z);[110,165,220].forEach((f,i)=>tone(f,1.9,{type:'sawtooth',vol:0.12,to:f*2.1,lp:900,att:0.7,delay:i*0.12,dest:d}));nz(1.6,{f:500,vol:0.18,att:0.9,dest:d});},
+  miniRise(x,z){const d=sp(x,z);tone(90,0.7,{type:'sawtooth',vol:0.2,to:220,lp:600,att:0.1,dest:d});nz(0.5,{f:300,vol:0.2,dest:d});},
+  miniWind(x,z){const d=sp(x,z);tone(240,0.5,{type:'sawtooth',vol:0.12,to:120,lp:900,att:0.1,dest:d});},
+  miniHit(x,z){const d=sp(x,z);tone(110,0.2,{vol:0.4,to:50,dest:d});nz(0.12,{f:900,vol:0.25,dest:d});},
   waveBlast(x,z){const d=sp(x,z);tone(70,1.5,{vol:0.9,to:24,dest:d});nz(1.3,{f:1000,vol:0.55,dest:d});tone(520,1.1,{type:'square',vol:0.16,to:90,dest:d,lp:1600});},
   bossDie(x,z){const d=sp(x,z);tone(90,2.6,{type:'sawtooth',vol:0.5,to:20,lp:500,dest:d});nz(2.2,{f:400,vol:0.4,dest:d});}
 });
@@ -1637,7 +1741,7 @@ function weaponUse(){
   if(fight){
     const bb=bs.b; if(W.ranged){ cam.getWorldDirection(_v1); const dd=Math.hypot(bb.x-player.x,bb.z-player.z); endPt=new THREE.Vector3().copy(cam.position).addScaledVector(_v1,Math.min(W.reach,dd)); }
     if(MPS.active){ if(MPS.net)MPS.net.attack(id,player.yaw,player.pitch,r=>{ if(r&&r.ok&&r.hit)bossHitFx(r.dmg,r.gold); }); }
-    else if(SPB.S){ const res=BCORE.attackResult(SPB.S,{x:player.x,z:player.z},id,player.yaw,player.pitch); if(res&&res.hit){ const d=BCORE.applyDamage(SPB.S,'me',res.dmg); spAddGold(d.gold); bossHitFx(res.dmg,d.gold); } }
+    else if(SPB.S){ const res=BCORE.attackResult(SPB.S,{x:player.x,z:player.z},id,player.yaw,player.pitch); if(res&&res.hit){ const d=BCORE.applyDamage(SPB.S,'me',res.dmg,res.mini); spAddGold(d.gold); bossHitFx(res.dmg,d.gold); if(d.mini&&d.killed)popGain('MİNİ BOSS ÖLDÜ'); } }
   } else if(BOSSC.zone==='park'){ const hm=hitMonsters(id); if(hm&&W.ranged)endPt=new THREE.Vector3(hm.x,1.3,hm.z); }
   fireTracer(id,endPt);
 }
@@ -1671,9 +1775,7 @@ const waveG=new THREE.Group(); waveG.visible=false; scene.add(waveG);
 const waveMat=new THREE.MeshBasicMaterial({color:0x9fe0ff,transparent:true,opacity:0.42,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
 const waveBox=new THREE.Mesh(new THREE.BoxGeometry(1,2.6,1),waveMat); waveG.add(waveBox);
 const waveFloor=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false})); waveFloor.rotation.x=-Math.PI/2; waveFloor.position.y=0.09; waveG.add(waveFloor);
-const bossRig=buildClown(); bossRig.g.scale.setScalar(BCORE.BOSS.scale); bossRig.g.visible=false; scene.add(bossRig.g);
-{ const M=c=>new THREE.MeshLambertMaterial({color:c,emissive:0x300000}); for(const y of [1.5,1.8,2.1]){ const b=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,6),M(0xe0c040)); b.position.set(0,y,0.17); bossRig.g.add(b); }
-  const hair=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6),new THREE.MeshLambertMaterial({color:0xd03020})); hair.position.set(-0.3,2.55,0); bossRig.g.add(hair); const hair2=hair.clone(); hair2.position.x=0.3; bossRig.g.add(hair2); }
+const bossRig=buildClown({boss:true}); bossRig.g.scale.setScalar(BCORE.BOSS.scale); bossRig.g.visible=false; scene.add(bossRig.g);
 const bossMats=[]; bossRig.g.traverse(o=>{ if(o.isMesh&&o.material&&o.material.emissive&&bossMats.indexOf(o.material)<0)bossMats.push(o.material); });
 function bossGlow(hex,k){ for(const m of bossMats){ m.emissive.setHex(hex); m.emissiveIntensity=k; } }
 /* portal (plaza ortası): büyük girdap + halka + yerde giriş alanı */
@@ -1700,6 +1802,7 @@ let bannerT=0;
 function banner(t,secs,col){ const e=$('bossBanner'); e.textContent=t; e.style.color=col||'#ff4a3a'; e.classList.remove('hid'); bannerT=secs||3; }
 function fmtT(s){ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function doTeleport(spot,zone){
+  BOSSC.hp=100;
   BOSSC.zone=zone; if(player.hidden){ player.hidden=false; player.hideSpot=null; } if(state==='modal'||state==='cam'){ if(state==='cam')exitCam(); else closeModal(); }
   player.x=spot.x; player.z=spot.z; player.y=Math.max(0,spot.y||0); player.vy=0; player.yaw=typeof spot.yaw==='number'?spot.yaw:0; player.pitch=0; MPS.tp=true;
   if(zone==='park'){ BOSSC.down=false; scene.fog.density=0.027; } else scene.fog.density=zone==='arena'?0.013:0.018;
@@ -1717,17 +1820,19 @@ function bossFx(e){
     else if(e.phase==='wait'&&BOSSC.zone==='park')msg('Savaş başlıyor — portal hâlâ açık, katılmak için gir!',5);
   }
 }
-function bossHurt(k){
-  if(BOSSC.down||MPS.god)return; BOSSC.down=true; unequipWeapon(); player.shake=1.6; SFX.scream();
+function bossHurt(k,hpLeft){
+  if(BOSSC.down||MPS.god)return;
+  if(k==='mini'&&hpLeft>0){ BOSSC.hp=hpLeft; player.shake=Math.max(player.shake,0.9); SFX.hurt&&SFX.hurt(); const f=$('flashov'); f.style.transition='none'; f.style.background='#a00'; f.style.opacity=0.45; requestAnimationFrame(()=>{ f.style.transition='opacity 0.6s'; f.style.opacity=0; setTimeout(()=>{f.style.background='#fff';},700); }); msg('Mini boss seni yaraladı! Can: '+hpLeft,1.8); return; }
+  BOSSC.hp=0; BOSSC.down=true; unequipWeapon(); player.shake=1.6; SFX.scream();
   const f=$('flashov'); f.style.transition='none'; f.style.background='#a00'; f.style.opacity=0.8; requestAnimationFrame(()=>{ f.style.transition='opacity 1.2s'; f.style.opacity=0; setTimeout(()=>{f.style.background='#fff';},1300); });
-  banner('ÖLDÜN! '+(k==='wave'?'SES DALGASI':'YUMRUK')+' seni yakaladı — savaş bitene kadar izle.',6,'#ff3040');
+  banner('ÖLDÜN! '+(k==='wave'?'SES DALGASI':k==='mini'?'MİNİ BOSSLAR':'YUMRUK')+' seni yakaladı — savaş bitene kadar izle.',6,'#ff3040');
 }
 function bossEnd(res){
   BOSSC.ended=1; if(res==='win'){ banner('ZAFER! DEV PALYAÇO YENİLDİ',6,'#7dff9c'); SFX.win(); }
   else if(res==='lose'){ banner('BOSS KAZANDI…',6,'#ff4a3a'); }
   else banner('Portal kapandı — kimse girmedi.',4,'#aab');
 }
-function bossReset(){ BOSSC.zone='park'; BOSSC.snap=null; BOSSC.down=false; BOSSC.st=''; SPB.S=null; SPB.nextT=BCORE.TIMING.autoEvery; SPB.warned=0; scene.fog.density=0.027; portalG.visible=false; bossRig.g.visible=false; tgPunch.visible=false; tgBeamG.visible=false; waveG.visible=false; $('bossHud').classList.add('hid'); $('bossBanner').classList.add('hid'); $('bossSub').textContent=''; unequipWeapon(); }
+function bossReset(){ BOSSC.hp=100; BOSSC.zone='park'; BOSSC.snap=null; BOSSC.down=false; BOSSC.st=''; SPB.S=null; SPB.nextT=BCORE.TIMING.autoEvery; SPB.warned=0; scene.fog.density=0.027; portalG.visible=false; bossRig.g.visible=false; tgPunch.visible=false; tgBeamG.visible=false; waveG.visible=false; $('bossHud').classList.add('hid'); $('bossBanner').classList.add('hid'); $('bossSub').textContent=''; unequipWeapon(); }
 
 /* ---------- tek oyunculu ev sahibi: aynı çekirdek yerelde çalışır ---------- */
 function spStartBoss(){ if(MPS.active||SPB.S)return false; SPB.S=BCORE.createSession({}); SPB.nextT=BCORE.TIMING.autoEvery; SPB.warned=0; return true; }
@@ -1735,7 +1840,7 @@ function spEvent(e){
   if(e.t==='announce'||e.t==='phase')bossFx(e);
   else if(e.t==='enter'){ if(TW().w.length===0){ TW().w.push('sling'); saveGame(); refreshWbar(); msg('Elin boş girmeyesin: ÜCRETSİZ SAPAN açıldı.',4); } doTeleport(e.spawn,'wait'); }
   else if(e.t==='toArena'){ for(const m of e.moves)if(m.id==='me')doTeleport(m,'arena'); }
-  else if(e.t==='hurt'){ if(e.id==='me')bossHurt(e.k); }
+  else if(e.t==='hurt'){ if(e.id==='me'){ if(e.k==='mini'){ BOSSC.hp=Math.max(0,BOSSC.hp-e.dmg); bossHurt('mini',BOSSC.hp); } else bossHurt(e.k,0); } }
   else if(e.t==='end')bossEnd(e.result);
   else if(e.t==='rewards'){ if(e.gold.me){ spAddGold(e.gold.me); popGain('+'+e.gold.me+' ⛁ ZAFER'); } }
   else if(e.t==='home'){ for(const m of e.moves)if(m.id==='me')doTeleport(m,'park'); }
@@ -1745,7 +1850,7 @@ function spTick(dt){
   if(!SPB.S){ BOSSC.snap=null; if(state!=='playing')return; SPB.nextT-=dt;
     for(const w of [60,10])if(SPB.nextT<=w&&(SPB.warned===0||SPB.warned>w)){ SPB.warned=w; msg('Boss savaşı '+w+' saniye sonra başlıyor!',4); }
     if(SPB.nextT<=0&&BOSSC.zone==='park'&&!player.hidden)spStartBoss(); return; }
-  const S=SPB.S; const evs=BCORE.tick(S,dt,[{id:'me',x:player.x,z:player.z,hp:BOSSC.down?0:100,alive:!BOSSC.down&&state!=='dead',zone:BOSSC.zone}]);
+  const S=SPB.S; const evs=BCORE.tick(S,dt,[{id:'me',x:player.x,z:player.z,hp:BOSSC.down?0:BOSSC.hp,alive:!BOSSC.down&&state!=='dead',zone:BOSSC.zone}]);
   for(const e of evs)spEvent(e);
   BOSSC.snap=BCORE.snapshot(S); BOSSC.newSnap=true; if(S.done){ SPB.S=null; BOSSC.snap=null; }
 }
@@ -1771,10 +1876,12 @@ function pollAdminBoss(dt){ const el=$('acBossInfo'); if(MPS.active){ nextInT-=d
 const easeO=k=>1-Math.pow(1-Math.max(0,Math.min(1,k)),3);
 function bossStateChanged(b){
   const x=b.x,z=b.z;
-  if((b.st==='punchWind'||b.st==='waveWind')&&techOpen&&BOSSC.zone==='arena'){ closeModal(); msg('SALDIRI GELİYOR — KAÇ!',2); }
+  if((b.st==='punchWind'||b.st==='waveWind'||b.st==='summonWind')&&techOpen&&BOSSC.zone==='arena'){ closeModal(); msg('SALDIRI GELİYOR — KAÇ!',2); }
   if(b.st==='punchWind')SFX.bossWind(x,z); else if(b.st==='punch'){ SFX.slam(x,z); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,0.9); }
   else if(b.st==='waveWind')SFX.waveWind(x,z); else if(b.st==='wave'){ SFX.waveBlast(x,z); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,0.8); }
   else if(b.st==='spawn'){ SFX.bossRoar(); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,1.2); }
+  else if(b.st==='summonWind'){ SFX.summonCall(x,z); if(BOSSC.zone==='arena'){ player.shake=Math.max(player.shake,0.5); banner('⚠ MİNİ BOSSLAR GELİYOR!',2.5,'#c070ff'); msg('Mor halkalardan çıkacaklar — silahını hazırla, yakınlaşana kadar vur!',4); } }
+  else if(b.st==='summonEnd'){ SFX.slam(x,z); if(BOSSC.zone==='arena')player.shake=Math.max(player.shake,0.7); }
   else if(b.st==='dead')SFX.bossDie(x,z);
   else if(b.st==='tired'&&BOSSC.zone==='arena')msg('BOSS YORGUN — ×1,5 hasar! SALDIR!',2.5);
 }
@@ -1786,22 +1893,38 @@ function updBossVisual(dt){
   const t=BOSSC.sT,st=b.st,side=b.sd;
   /* portal */
   const pt=sn.pt; portalG.visible=pt>0.01; if(portalG.visible){ portalG.scale.setScalar(Math.max(0.01,pt)); swirlTex.rotation=-now*1.4; pRing2.rotation.z=now*0.8; pRing.material.color.setHSL(0.76+Math.sin(now*2)*0.03,0.9,0.6); pFloor.material.opacity=0.28+0.18*Math.sin(now*4); }
-  /* poz sıfırla */
-  R.g.visible=!!b.v; let sc=BCORE.BOSS.scale,yaw=0; R.g.position.set(b.x,0,b.z); R.g.rotation.set(0,0,0);
-  for(const l of [R.legL,R.legR,R.armL,R.armR])l.rotation.set(0,0,0); R.head.rotation.set(0,0,0);
-  const raiseArm=(A,sg,k)=>{ A.rotation.x=-2.9*k; A.rotation.z=sg*0.25*k; };
-  let glow=0,gcol=0xff2010;
-  if(st==='walk'){ const ph=now*4.2; R.legL.rotation.x=Math.sin(ph)*0.5; R.legR.rotation.x=-Math.sin(ph)*0.5; R.armL.rotation.x=-Math.sin(ph)*0.4; R.armR.rotation.x=Math.sin(ph)*0.4; R.g.position.y=Math.abs(Math.sin(ph))*0.25; if(Math.floor(now*2.1)!==Math.floor((now-dt)*2.1)&&Math.hypot(b.x-player.x,b.z-player.z)<70){ SFX.mstep(b.x,b.z,true); player.shake=Math.max(player.shake,Math.max(0,0.5-Math.hypot(b.x-player.x,b.z-player.z)/90)); } }
-  else if(st==='summon'){ const k=easeO(t/0.8); R.armL.rotation.x=-2.8*k; R.armR.rotation.x=-2.8*k; R.armL.rotation.z=-0.3*k; R.armR.rotation.z=0.3*k; R.head.rotation.x=-0.5*k; R.g.rotation.z=Math.sin(now*30)*0.015; glow=0.5+0.4*Math.sin(now*10); gcol=0xa050ff; }
-  else if(st==='enter'){ const p=Math.min(1,t/T.introEnter); sc*=(1-0.92*p); const ph=now*4.2; R.legL.rotation.x=Math.sin(ph)*0.5; R.legR.rotation.x=-Math.sin(ph)*0.5; R.armL.rotation.x=-2.2; R.armR.rotation.x=-2.2; glow=p; gcol=0xa050ff; }
-  else if(st==='spawn'){ const k=easeO(t/0.8); R.head.rotation.x=-0.7*k; R.armL.rotation.z=-1.25*k; R.armR.rotation.z=1.25*k; R.g.rotation.x=-0.12*k; R.g.rotation.z=Math.sin(now*34)*0.02; glow=0.5*k; }
-  else if(st==='idle'||st==='recover'){ const br=Math.sin(now*1.6); R.armL.rotation.x=0.05+br*0.04; R.armR.rotation.x=0.05-br*0.04; R.head.rotation.z=Math.sin(now*0.9)*0.05; sc*=1+br*0.008; if(st==='recover'&&side){ const A=side==='R'?R.armL:R.armR,sg=side==='R'?-1:1,k=1-easeO(t/T.punchRecover); A.rotation.x=-0.6*k; A.rotation.z=sg*1.1*k; R.g.rotation.x=0.18*k; } }
-  else if(st==='punchWind'){ const A=side==='R'?R.armL:R.armR,sg=side==='R'?-1:1,k=easeO(t/0.3); raiseArm(A,sg,k); A.rotation.z+=Math.sin(now*42)*0.03*(t/T.punchWarn); R.g.rotation.z=-sg*0.06*k; R.head.rotation.z=-sg*0.2*k; glow=0.15+0.6*(t/T.punchWarn); gcol=0xff2010; }
-  else if(st==='punch'){ const A=side==='R'?R.armL:R.armR,sg=side==='R'?-1:1,u=Math.min(1,t/T.punchStrike),k=easeO(u/0.5); A.rotation.x=-2.9+2.3*k; A.rotation.z=sg*(0.25+0.85*k); R.g.rotation.x=0.25*k; R.g.rotation.z=sg*0.1*k; glow=1-u; gcol=0xff6030; }
-  else if(st==='waveWind'){ const k=easeO(t/T.waveWarn); R.armL.rotation.z=-1.25*k; R.armR.rotation.z=1.25*k; R.armL.rotation.x=-0.3*k; R.armR.rotation.x=-0.3*k; R.head.rotation.x=-0.6*k; yaw=b.wd*k; sc*=1+0.07*k; R.g.rotation.z=Math.sin(now*36)*0.012*k; glow=0.2+0.7*k*(0.6+0.4*Math.sin(now*14)); gcol=0x3a9cff; }
-  else if(st==='wave'){ R.armL.rotation.x=-1.55; R.armR.rotation.x=-1.55; R.head.rotation.x=0.25; R.g.rotation.x=0.18; yaw=b.wd; glow=0.9; gcol=0xbfe8ff; }
-  else if(st==='tired'){ const k=easeO(t/0.5); R.head.rotation.x=0.65*k; R.armL.rotation.x=0.3*k; R.armR.rotation.x=0.3*k; R.g.rotation.x=0.28*k; sc*=1+Math.sin(now*5)*0.012; glow=0.25; gcol=0x40a0ff; }
-  else if(st==='dead'){ const k=Math.min(1,t/1.6); R.g.rotation.x=-1.5*easeO(k); R.g.position.y=-0.7*k; }
+  /* poz sıfırla: tüm eklemler her karede baştan kurulur (organik: diz, dirsek, gövde bükülmesi, çene, parmak) */
+  R.g.visible=!!b.v; let sc=BCORE.BOSS.scale,yaw=0; R.g.position.set(b.x,0,b.z); R.g.rotation.set(0,0,0); resetPose(R);
+  const eIn=k=>{ k=Math.max(0,Math.min(1,k)); return k*k; };
+  const crouch=k=>{ const th=0.5*k,kn=1.0*k; R.legL.rotation.x=-th; R.legR.rotation.x=-th; R.kneeL.rotation.x=kn; R.kneeR.rotation.x=kn; R.footL.rotation.x=th-kn; R.footR.rotation.x=th-kn; R.g.position.y=-(0.62*(1-Math.cos(th))+0.54*(1-Math.cos(kn-th)))*sc; };
+  BOSSC.hy=lerp(BOSSC.hy||0,BOSSC.zone==='arena'?clamp(Math.atan2(player.x-b.x,player.z-b.z),-0.9,0.9):0,Math.min(1,dt*3));
+  const sg=side==='R'?-1:1, PA=side==='R'?R.armL:R.armR, PE=side==='R'?R.elbowL:R.elbowR, PH=side==='R'?R.handL:R.handR, OA=side==='R'?R.armR:R.armL, OE=side==='R'?R.elbowR:R.elbowL;
+  const curlBoth=k=>{ curlHand(R.handL,k); curlHand(R.handR,k); };
+  let glow=0,gcol=0xff2010; const br=Math.sin(now*1.6);
+  if(st==='walk'){ const ph=now*4.2; gaitPose(R,ph,1,0.2,false); R.torso.rotation.x=0.12; R.g.position.y=Math.abs(Math.cos(ph))*0.2; R.jaw.rotation.x=0.18; if(Math.floor(now*2.1)!==Math.floor((now-dt)*2.1)&&Math.hypot(b.x-player.x,b.z-player.z)<70){ SFX.mstep(b.x,b.z,true); player.shake=Math.max(player.shake,Math.max(0,0.5-Math.hypot(b.x-player.x,b.z-player.z)/90)); } }
+  else if(st==='summon'){ const k=easeO(t/0.8); R.armL.rotation.x=-2.7*k; R.armR.rotation.x=-2.7*k; R.armL.rotation.z=-0.35*k; R.armR.rotation.z=0.35*k; R.elbowL.rotation.x=-0.3*k; R.elbowR.rotation.x=-0.3*k; R.torso.rotation.x=-0.2*k; R.head.rotation.x=-0.6*k; R.jaw.rotation.x=0.7*k; curlBoth(0.6*k); R.g.rotation.z=Math.sin(now*30)*0.015; glow=0.5+0.4*Math.sin(now*10); gcol=0xa050ff; }
+  else if(st==='enter'){ const p=Math.min(1,t/T.introEnter); sc*=(1-0.92*p); gaitPose(R,now*4.2,1,0.3,false); R.armL.rotation.x=-2.2; R.armR.rotation.x=-2.2; R.elbowL.rotation.x=-0.3; R.elbowR.rotation.x=-0.3; R.torso.rotation.x=-0.1; glow=p; gcol=0xa050ff; }
+  else if(st==='spawn'){ const k=easeO(t/0.8); crouch(0.25*k); R.head.rotation.x=-0.7*k; R.torso.rotation.x=-0.25*k; R.torso.scale.set(1+0.1*k,1+0.1*k,1+0.1*k); R.armL.rotation.z=-1.2*k; R.armR.rotation.z=1.2*k; R.armL.rotation.x=-0.3*k; R.armR.rotation.x=-0.3*k; R.elbowL.rotation.x=-0.5*k; R.elbowR.rotation.x=-0.5*k; R.jaw.rotation.x=k*(0.9+0.1*Math.sin(now*30)); curlBoth(0.8*k); R.g.rotation.z=Math.sin(now*34)*0.02; glow=0.5*k; }
+  else if(st==='idle'){ crouch(0.12); R.torso.rotation.x=0.05+br*0.015; R.torso.rotation.z=Math.sin(now*0.7)*0.03; R.torso.scale.set(1+br*0.006,1+br*0.012,1+br*0.008); R.armL.rotation.x=0.05+br*0.04; R.armR.rotation.x=0.05-br*0.04; R.armL.rotation.z=-0.08; R.armR.rotation.z=0.08; R.elbowL.rotation.x=-0.35-0.05*br; R.elbowR.rotation.x=-0.35+0.05*br;
+    R.head.rotation.y=BOSSC.hy*0.8; R.head.rotation.z=Math.sin(now*0.9)*0.06; R.jaw.rotation.x=0.06+0.05*Math.sin(now*1.9); curlHand(R.handL,0.25+0.15*Math.sin(now*2.3)); curlHand(R.handR,0.25+0.15*Math.sin(now*2.3+2)); sc*=1+br*0.006; }
+  else if(st==='recover'){ const k=1-easeO(t/T.punchRecover); crouch(0.12+0.2*k); PA.rotation.x=-0.6*k; PA.rotation.z=sg*1.1*k; PE.rotation.x=-0.1-0.2*k; R.torso.rotation.x=0.05+0.35*k; R.torso.rotation.y=-sg*0.5*k; R.head.rotation.x=0.2*k; R.head.rotation.y=BOSSC.hy*0.8; R.torso.scale.set(1,1+0.03*Math.sin(now*8)*k,1); R.jaw.rotation.x=0.2*k; curlHand(PH,0.9*k+0.2); }
+  else if(st==='punchWind'){ const k=easeO(t/0.35),w=t/T.punchWarn; crouch(0.5*k); R.torso.rotation.y=sg*0.5*k; R.torso.rotation.x=0.1*k; R.torso.rotation.z=-sg*0.06*k;
+    PA.rotation.x=-2.9*k; PA.rotation.z=sg*0.25*k+Math.sin(now*42)*0.03*w; PE.rotation.x=-0.7*k; curlHand(PH,0.9*k);
+    OA.rotation.x=-0.5*k; OE.rotation.x=-1.2*k; R.head.rotation.z=-sg*0.2*k; R.head.rotation.y=BOSSC.hy*0.5; R.jaw.rotation.x=0.25*k+0.1*Math.sin(now*30)*w; glow=0.15+0.6*w; gcol=0xff2010; }
+  else if(st==='punch'){ const u=Math.min(1,t/T.punchStrike),k=easeO(u/0.5); crouch(0.5-0.35*k); R.torso.rotation.y=sg*(0.5-1.0*k); R.torso.rotation.x=0.1+0.35*k;
+    PA.rotation.x=-2.9+2.3*k; PA.rotation.z=sg*(0.25+0.85*k); PE.rotation.x=-0.7*(1-k)-0.1; curlHand(PH,0.95); OA.rotation.x=-0.5+0.9*k; OE.rotation.x=-1.2+0.8*k; R.head.rotation.x=0.25*k; R.jaw.rotation.x=0.5*k; glow=1-u; gcol=0xff6030; }
+  else if(st==='waveWind'){ const k=easeO(t/T.waveWarn); crouch(0.3*k); R.armL.rotation.z=-1.25*k; R.armR.rotation.z=1.25*k; R.armL.rotation.x=-0.3*k; R.armR.rotation.x=-0.3*k; R.elbowL.rotation.x=-0.6*k; R.elbowR.rotation.x=-0.6*k;
+    R.torso.rotation.x=-0.3*k; const inf=1+0.12*k; R.torso.scale.set(inf,inf,inf); R.head.rotation.x=-0.7*k; R.jaw.rotation.x=0.2+0.9*k; curlBoth(0.5*k); yaw=b.wd*k; sc*=1+0.04*k; R.g.rotation.z=Math.sin(now*36)*0.012*k; glow=0.2+0.7*k*(0.6+0.4*Math.sin(now*14)); gcol=0x3a9cff; }
+  else if(st==='wave'){ const kick=Math.max(0,1-t*3); crouch(0.25); R.armL.rotation.x=-1.55; R.armR.rotation.x=-1.55; R.armL.rotation.z=-0.15; R.armR.rotation.z=0.15; R.elbowL.rotation.x=-0.2; R.elbowR.rotation.x=-0.2; R.torso.rotation.x=0.3-0.3*kick; R.head.rotation.x=0.2-0.5*kick;
+    R.jaw.rotation.x=1.05+0.1*Math.sin(now*40); curlBoth(0); yaw=b.wd; R.g.rotation.z=Math.sin(now*50)*0.01; glow=0.9; gcol=0xbfe8ff; }
+  else if(st==='summonWind'){ const kr=easeO(t/0.5),u=eIn((t-(T.summonWarn-0.3))/0.3),inv=1-u;
+    R.armL.rotation.x=-2.8*kr*inv-0.3*u; R.armR.rotation.x=-2.8*kr*inv-0.3*u; R.armL.rotation.z=-0.3*inv; R.armR.rotation.z=0.3*inv; R.elbowL.rotation.x=-0.3*inv-0.2*u; R.elbowR.rotation.x=-0.3*inv-0.2*u;
+    R.torso.rotation.x=-0.2*kr*inv+0.45*u; R.head.rotation.x=-0.5*kr*inv+0.3*u; R.jaw.rotation.x=0.6*inv+0.2*u; crouch(0.2*kr+0.45*u); curlBoth(0.7*inv+0.9*u); R.g.rotation.z=Math.sin(now*30)*0.012*kr*inv;
+    glow=0.3+0.5*(t/T.summonWarn)*(0.7+0.3*Math.sin(now*16)); gcol=0xb030ff; }
+  else if(st==='summonEnd'){ const f=1-easeO((t-0.8)/0.6); crouch(0.1); R.head.rotation.x=-0.5*f; R.jaw.rotation.x=(0.8+0.2*Math.sin(now*28))*f; R.torso.rotation.x=-0.1*f; const s2=1+0.03*Math.sin(now*20)*f; R.torso.scale.set(s2,s2,s2);
+    R.armL.rotation.x=-1.0*f; R.armR.rotation.x=-1.0*f; R.armL.rotation.z=-0.5*f; R.armR.rotation.z=0.5*f; R.elbowL.rotation.x=-0.8*f; R.elbowR.rotation.x=-0.8*f; R.g.rotation.z=Math.sin(now*22)*0.02*f; glow=0.4*f; gcol=0xb030ff; }
+  else if(st==='tired'){ const k=easeO(t/0.5); crouch(0.35*k); R.torso.rotation.x=0.75*k; R.armL.rotation.x=-0.55*k; R.armR.rotation.x=-0.55*k; R.elbowL.rotation.x=-0.3*k; R.elbowR.rotation.x=-0.3*k; R.head.rotation.x=-0.15*k; R.jaw.rotation.x=(0.5+0.2*Math.sin(now*7))*k; R.torso.scale.set(1,1+0.04*Math.sin(now*7)*k,1); sc*=1+Math.sin(now*5)*0.008; glow=0.25; gcol=0x40a0ff; }
+  else if(st==='dead'){ const u=Math.min(1,t/1.6); crouch(0.8*Math.min(1,t/0.5)); const dy=R.g.position.y; R.g.rotation.x=-1.5*easeO(u); R.g.position.y=dy-0.7*u; R.armL.rotation.z=-0.6*u; R.armR.rotation.z=0.6*u; R.head.rotation.x=-0.4*u; R.jaw.rotation.x=0.9; }
   R.g.rotation.y=yaw; R.g.scale.setScalar(sc);
   BOSSC.flash=Math.max(0,BOSSC.flash-dt*3.2); if(BOSSC.flash>0){ gcol=0xff2020; glow=Math.max(glow,BOSSC.flash*0.9); }
   bossGlow(gcol,glow);
@@ -1817,6 +1940,42 @@ function updBossVisual(dt){
     waveG.position.set(G.ox,0,G.oz); waveG.rotation.y=b.wd; waveBox.scale.set(BCORE.WAVE.halfW*2,1,L); waveBox.position.set(0,1.3,s0+L/2); waveFloor.scale.set(BCORE.WAVE.halfW*2,L,1); waveFloor.position.set(0,0.09,s0+L/2); waveMat.opacity=0.3+0.2*Math.sin(now*40); }
 }
 
+/* ---------- mini bosslar: sunucunun anlık görüntüsünden çizilir (konum yumuşatılır), doğma işaretleri ---------- */
+const MINIS=new Map(),MINI_POOL=[],MINI_SC=0.8;
+const miniRingMat=new THREE.MeshBasicMaterial({color:0xff2a1a,transparent:true,opacity:0.4,depthWrite:false,side:THREE.DoubleSide,fog:false});
+const sumMat=new THREE.MeshBasicMaterial({color:0xb030ff,transparent:true,opacity:0.6,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,fog:false});
+const sumMarks=[]; for(let i=0;i<6;i++){ const g=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(0.8,1.15,28),sumMat.clone()); ring.rotation.x=-Math.PI/2; ring.position.y=0.1; g.add(ring);
+  const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,6,16,1,true),sumMat.clone()); pil.position.y=3; g.add(pil); g.visible=false; scene.add(g); sumMarks.push({g,ring,pil}); }
+function newMini(id){ let e=MINI_POOL.pop();
+  if(!e){ const rig=buildClown({mini:true}); resetPose(rig); rig.g.scale.setScalar(MINI_SC); scene.add(rig.g);
+    const ring=new THREE.Mesh(new THREE.CircleGeometry(2.0,28),miniRingMat.clone()); ring.rotation.x=-Math.PI/2; ring.position.y=0.07; ring.visible=false; scene.add(ring); e={rig,ring}; }
+  Object.assign(e,{id,x:0,z:0,yaw:0,st:'rise',lt:0,ph:0,amp:0,dead:false,dT:0,init:false}); e.rig.g.visible=true; return e; }
+function updMinis(dt){
+  const sn=BOSSC.snap,now=S.t,alive=new Set(),Mn=BCORE.MINI,T=BCORE.TIMING;
+  if(sn&&sn.m&&sn.ph==='fight'){
+    for(const q of sn.m){ const id=q[0]; alive.add(id); let e=MINIS.get(id); if(!e){ e=newMini(id); MINIS.set(id,e); }
+      if(!e.init){ e.x=q[1]; e.z=q[2]; e.yaw=q[3]; e.init=true; }
+      const k=Math.min(1,dt*14),px=e.x,pz=e.z; e.x+=(q[1]-e.x)*k; e.z+=(q[2]-e.z)*k; let dy=q[3]-e.yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy)); e.yaw+=dy*Math.min(1,dt*10);
+      if(q[5]!==e.st){ e.st=q[5]; e.lt=q[6]; if(e.st==='wind'&&SFX.miniWind)SFX.miniWind(e.x,e.z); else if(e.st==='strike'&&SFX.miniHit)SFX.miniHit(e.x,e.z); else if(e.st==='rise'&&SFX.miniRise)SFX.miniRise(e.x,e.z); } else e.lt+=dt;
+      const mv=Math.hypot(e.x-px,e.z-pz); e.ph+=mv*2.3; e.amp=lerp(e.amp,Math.min(1,mv/Math.max(dt,0.001)/4),Math.min(1,dt*8)); } }
+  for(const [id,e] of MINIS)if(!alive.has(id)&&!e.dead){ e.dead=true; e.dT=sn?0:9; }
+  for(const [id,e] of MINIS){ const r=e.rig;
+    if(e.dead){ e.dT+=dt; if(e.dT>1.3){ r.g.visible=false; e.ring.visible=false; MINIS.delete(id); MINI_POOL.push(e); continue; }
+      const u=Math.min(1,e.dT/0.7); resetPose(r); r.torso.rotation.x=-0.5*u; r.armL.rotation.z=-1.0*u; r.armR.rotation.z=1.0*u; r.jaw.rotation.x=0.8;
+      r.g.rotation.set(-1.45*easeO(u),e.yaw,0); r.g.position.set(e.x,-0.5*easeO(u)-Math.max(0,e.dT-0.9)*3,e.z); e.ring.visible=false; continue; }
+    resetPose(r); const st=e.st,lt=e.lt; let y=0,lean=0.05,ox=0,oz=0; r.g.rotation.set(0,e.yaw,0); let ring=0;
+    if(st==='rise'){ const u=easeO(lt/Mn.rise); y=-2.4*(1-u); r.armL.rotation.x=-2.2+0.6*Math.sin(now*14); r.armR.rotation.x=-2.0+0.6*Math.cos(now*13); r.jaw.rotation.x=0.6; r.torso.rotation.x=-0.3*(1-u); }
+    else if(st==='wind'){ const k=easeO(lt/0.3),w=Math.min(1,lt/Mn.windup); gaitPose(r,e.ph,0,0,false); r.armR.rotation.x=-2.8*k; r.armR.rotation.z=0.2*k; r.elbowR.rotation.x=-0.7*k; r.armL.rotation.x=-0.5*k; r.elbowL.rotation.x=-1.0*k; r.torso.rotation.y=0.45*k; lean=-0.1*k; r.jaw.rotation.x=0.5; curlHand(r.handR,0.9*k); ring=0.25+0.4*w+0.1*Math.sin(now*24); }
+    else if(st==='strike'){ const u=Math.min(1,lt/Mn.strike),k=easeO(u/0.5); r.armR.rotation.x=-2.8+2.5*k; r.armR.rotation.z=0.2+0.4*k; r.elbowR.rotation.x=-0.7*(1-k)-0.1; r.torso.rotation.y=0.45-0.9*k; lean=0.05+0.4*k; r.jaw.rotation.x=0.6; ox=Math.sin(e.yaw)*0.3*k; oz=Math.cos(e.yaw)*0.3*k; curlHand(r.handR,0.95); ring=0.7*(1-u); }
+    else { const a=Math.max(0.35,e.amp); gaitPose(r,e.ph,a,1,false); lean=0.12+0.28*a; r.armL.rotation.x-=0.9*a*(0.6+0.4*Math.sin(now*11)); r.armR.rotation.x-=0.9*a*(0.6+0.4*Math.cos(now*11)); r.jaw.rotation.x=0.3+0.25*Math.sin(now*26); r.head.rotation.z=Math.sin(now*14+e.id)*0.08; y=Math.abs(Math.cos(e.ph))*0.05*a; }
+    r.torso.rotation.x=lean; r.g.position.set(e.x+ox,y,e.z+oz);
+    e.ring.visible=ring>0.01; if(e.ring.visible){ e.ring.position.x=e.x; e.ring.position.z=e.z; e.ring.material.opacity=ring; } }
+  /* doğma işaretleri (mor halka + ışık sütunu): 2 sn uyarı sırasında, mini daha çıkmadan */
+  const sp=sn&&sn.b.st==='summonWind'&&sn.sp?sn.sp:null;
+  for(let i=0;i<sumMarks.length;i++){ const mk=sumMarks[i],p=sp&&sp[i]; mk.g.visible=!!p; if(!p)continue; const f=Math.min(1,BOSSC.sT/T.summonWarn);
+    mk.g.position.set(p[0],0,p[1]); const pu=1+0.25*Math.sin(now*12+i); mk.ring.scale.set(pu*(1.6-0.6*f),pu*(1.6-0.6*f),1); mk.ring.material.opacity=0.35+0.5*f; mk.pil.scale.set(1,0.15+0.85*f,1); mk.pil.position.y=3*(0.15+0.85*f); mk.pil.material.opacity=0.08+0.3*f; }
+}
+
 /* ---------- HUD, banner, bekleme ekranı, ışıklar ---------- */
 const arenaL1=new THREE.PointLight(0xff5a3a,0,70,1.2); arenaL1.position.set(AR.cx,13,AR.cz-6); scene.add(arenaL1);
 const arenaL2=new THREE.PointLight(0x7aa8ff,0,60,1.4); arenaL2.position.set(AR.cx,10,AR.cz+12); scene.add(arenaL2);
@@ -1824,7 +1983,7 @@ const waitL=new THREE.PointLight(0xaec8ff,0,24,1.6); waitL.position.set(WT.cx,3.
 let hudT=0;
 function updBossSystem(dt){
   if(!MPS.active)spTick(dt); else if(BOSSC.snap&&performance.now()-(BOSSC.snapAt||0)>1500)BOSSC.snap=null;
-  updBossVisual(dt); updWeapon(dt); updTracers(dt);
+  updBossVisual(dt); updMinis(dt); updWeapon(dt); updTracers(dt);
   const z=BOSSC.zone; arenaL1.intensity=lerp(arenaL1.intensity,z==='arena'?2.6:0,Math.min(1,dt*3)); arenaL2.intensity=lerp(arenaL2.intensity,z==='arena'?1.3:0,Math.min(1,dt*3)); waitL.intensity=lerp(waitL.intensity,z==='wait'?1.8:0,Math.min(1,dt*3));
   if(bannerT>0){ bannerT-=dt; if(bannerT<=0)$('bossBanner').classList.add('hid'); }
   if(z==='wait'){ waitDrawT-=dt; if(waitDrawT<=0){ waitDrawT=0.4; drawWait(); } }
@@ -1836,7 +1995,7 @@ function updBossSystem(dt){
   else { const b=sn.b; let line='';
     if(sn.ph==='intro')line='Dev Palyaço geliyor…'; else if(sn.ph==='portal')line=z==='park'?'PORTAL AÇIK — plazanın ortasına yürü  ('+fmtT(sn.cd||0)+')':'';
     else if(sn.ph==='wait')line=z==='wait'?'SAVAŞ BAŞLIYOR: '+fmtT(sn.cd||0):(z==='park'?'Boss savaşı başlıyor ('+fmtT(sn.cd||0)+') — portal hâlâ açık!':'');
-    else if(sn.ph==='fight'){ line=z==='arena'?(BOSSC.down?'ÖLDÜN — izliyorsun':(b.st==='punchWind'?'⚠ YUMRUK GELİYOR — KIRMIZI ALANDAN ÇIK!':b.st==='waveWind'?'⚠ SES DALGASI — SÜTUNUN ARKASINA GEÇ!':b.st==='tired'?'BOSS YORGUN — ×1,5 HASAR':'Silahını kullan: tıkla / VUR')):'Boss savaşı sürüyor (arena)'; }
+    else if(sn.ph==='fight'){ line=z==='arena'?(BOSSC.down?'ÖLDÜN — izliyorsun':(b.st==='punchWind'?'⚠ YUMRUK GELİYOR — KIRMIZI ALANDAN ÇIK!':b.st==='waveWind'?'⚠ SES DALGASI — SÜTUNUN ARKASINA GEÇ!':b.st==='tired'?'BOSS YORGUN — ×1,5 HASAR':b.st==='summonWind'?'⚠ MİNİ BOSS ÇAĞIRIYOR — HAZIRLAN!':(sn.m&&sn.m.length)?'Mini bosslar: '+sn.m.length+' — onları yen (+25 ⛁), kaç ya da vur! CAN: '+BOSSC.hp:'Silahını kullan: tıkla / VUR')):'Boss savaşı sürüyor (arena)'; }
     else if(sn.ph==='end')line=sn.res==='win'?'ZAFER':sn.res==='lose'?'BOSS KAZANDI':'';
     sub.textContent=line; hp.classList.toggle('hid',!(sn.ph==='fight'||sn.ph==='end')&&!line);
     const f=$('bossBarWrap'); f.classList.toggle('hid',!(sn.ph==='fight'||(sn.ph==='end'&&sn.res==='win'))); if(b.mx>0){ $('bossHp').style.width=(100*b.hp/b.mx)+'%'; $('bossHpTxt').textContent=b.hp+' / '+b.mx; } }
@@ -1954,33 +2113,101 @@ function updateInteract(){ const pr=$('prompt'); if(state!=='playing'){pr.textCo
 
 /* ============ 16. CANAVARLAR ============ */
 function mkBuilder(){ const mats={}; return {M:c=>mats[c]||(mats[c]=new THREE.MeshLambertMaterial({color:c})),E:c=>new THREE.MeshBasicMaterial({color:c})}; }
-function buildClown(){ const g=new THREE.Group(),{M,E}=mkBuilder();
-  const add=(geo,mat,x,y,z,p)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.castShadow=true; (p||g).add(m); return m; };
-  const c1=M(0x5a1020),c2=M(0xd8d0c0),skin=M(0xc9c2b2),blk=M(0x0a0a0a);
-  add(new THREE.BoxGeometry(0.55,1.0,0.3),c1,0,1.75,0); add(new THREE.BoxGeometry(0.58,0.18,0.34),c2,0,1.6,0); add(new THREE.BoxGeometry(0.58,0.18,0.34),c2,0,1.95,0);
-  const head=new THREE.Group(); head.position.set(0,2.52,0); g.add(head);
-  add(new THREE.SphereGeometry(0.3,12,10),skin,0,0,0,head); add(new THREE.ConeGeometry(0.24,0.6,8),M(0xa01820),0,0.52,0,head); add(new THREE.SphereGeometry(0.075,8,6),M(0xd01818),0,-0.02,0.29,head);
-  add(new THREE.SphereGeometry(0.06,8,6),E(0xffe040),-0.11,0.07,0.25,head); add(new THREE.SphereGeometry(0.06,8,6),E(0xffe040),0.11,0.07,0.25,head);
-  add(new THREE.BoxGeometry(0.42,0.11,0.06),blk,0,-0.14,0.25,head); for(let i=0;i<8;i++)add(new THREE.BoxGeometry(0.03,0.08,0.03),M(0xeeeeee),-0.17+i*0.049,-0.1,0.285,head);
-  const col=add(new THREE.TorusGeometry(0.28,0.08,6,12),c2,0,2.2,0); col.rotation.x=Math.PI/2;
-  const limb=(x,y,len,w,mat)=>{ const p=new THREE.Group(); p.position.set(x,y,0); g.add(p); add(new THREE.BoxGeometry(w,len,w),mat,0,-len/2,0,p); return p; };
-  const legL=limb(-0.16,1.25,1.25,0.14,c1),legR=limb(0.16,1.25,1.25,0.14,c1),armL=limb(-0.38,2.2,1.55,0.1,skin),armR=limb(0.38,2.2,1.55,0.1,skin);
-  for(const l of [legL,legR])add(new THREE.BoxGeometry(0.2,0.1,0.42),blk,0,-1.25,0.1,l); for(const a of [armL,armR])add(new THREE.BoxGeometry(0.16,0.3,0.05),blk,0,-1.6,0,a);
-  return {g,head,legL,legR,armL,armR,hy:2.52}; }
-function buildBrute(){ const g=new THREE.Group(),{M,E}=mkBuilder();
-  const add=(geo,mat,x,y,z,p)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.castShadow=true; (p||g).add(m); return m; };
-  const dk=M(0x14161a),pl=M(0x7e847c),dk2=M(0x0c0d10);
-  const body=add(new THREE.BoxGeometry(1.0,1.3,0.6),dk,0,1.35,0); body.rotation.x=0.35; add(new THREE.BoxGeometry(0.8,0.6,0.5),dk2,0,1.95,-0.25);
-  for(let i=0;i<4;i++)add(new THREE.ConeGeometry(0.07,0.4,5),pl,-0.3+i*0.2,2.3,-0.3);
-  const head=new THREE.Group(); head.position.set(0,1.62,0.5); g.add(head);
-  add(new THREE.BoxGeometry(0.34,0.55,0.34),pl,0,0,0,head);
-  for(let i=0;i<3;i++)add(new THREE.SphereGeometry(0.05,6,5),E(0xff2020),-0.1+i*0.1,0.12-(i%2)*0.07,0.18,head);
-  add(new THREE.BoxGeometry(0.28,0.1,0.05),M(0x050505),0,-0.14,0.18,head); for(let i=0;i<6;i++)add(new THREE.BoxGeometry(0.025,0.07,0.03),M(0xdddddd),-0.12+i*0.048,-0.12,0.2,head);
-  const limb=(x,y,len,w,mat)=>{ const p=new THREE.Group(); p.position.set(x,y,0); g.add(p); add(new THREE.BoxGeometry(w,len,w),mat,0,-len/2,0,p); return p; };
-  const legL=limb(-0.3,0.95,0.95,0.3,dk),legR=limb(0.3,0.95,0.95,0.3,dk),armL=limb(-0.62,1.8,1.75,0.16,pl),armR=limb(0.62,1.8,1.75,0.16,pl);
-  for(const a of [armL,armR])for(let i=-1;i<=1;i++)add(new THREE.BoxGeometry(0.03,0.35,0.03),M(0xdddddd),i*0.05,-1.9,0.04,a);
-  return {g,head,legL,legR,armL,armR,hy:1.62}; }
-function mkMonster(kind){ const rig=kind===1?buildClown():buildBrute(); rig.g.visible=false; scene.add(rig.g);
+/* ---- organik gövde yardımcıları: yumrulu elipsoitler, sivrilen uzuvlar, eklemli kol/bacak, çeneli kafa ---- */
+function lump(geo,amp,seed){ const p=geo.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    const n=Math.sin(x*9.1+seed)*Math.sin(y*7.3+seed*1.7)*Math.sin(z*8.3+seed*0.6)+0.5*Math.sin((x+z)*17+y*5+seed); const k=1+n*amp; p.setXYZ(i,x*k,y*(1+n*amp*0.4),z*k); }
+  geo.computeVertexNormals(); return geo; }
+function orgKit(M){
+  const mesh=(geo,mat,par,x,y,z)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x||0,y||0,z||0); m.castShadow=true; par.add(m); return m; };
+  const ell=(par,mat,rx,ry,rz,x,y,z,amp,seed,seg)=>{ const g=new THREE.SphereGeometry(1,seg||12,seg?Math.max(6,seg-2):9); g.scale(rx,ry,rz); if(amp)lump(g,amp,seed||1); return mesh(g,mat,par,x,y,z); };
+  const seg=(par,mat,r0,r1,len,amp,seed)=>{ const g=new THREE.CylinderGeometry(r0,r1,len,10,2); g.translate(0,-len/2,0); lump(g,amp||0.05,seed||2); const m=mesh(g,mat,par,0,0,0); mesh(new THREE.SphereGeometry(r0*1.04,10,8),mat,par,0,0,0); return m; };
+  const cone=(par,mat,r,h,x,y,z,rx,rz)=>{ const m=mesh(new THREE.ConeGeometry(r,h,6),mat,par,x,y,z); m.rotation.x=rx||0; m.rotation.z=rz||0; return m; };
+  /* eklemli el: parmaklar iki boğumlu, curl(k) ile kıvrılır */
+  const hand=(par,mat,palmW,palmH,fLen,fR,n,y,claw,clawMat)=>{ const h=new THREE.Group(); h.position.set(0,y,0); par.add(h); ell(h,mat,palmW,palmH,palmW*0.45,0,-palmH*0.8,0,0.05,5,8); h.fing=[];
+    for(let i=0;i<n;i++){ const x=(i-(n-1)/2)*(palmW*2/n)*0.95; const a=new THREE.Group(); a.position.set(x,-palmH*1.5,0); h.add(a); seg(a,mat,fR,fR*0.7,fLen,0.03,i+7);
+      const b=new THREE.Group(); b.position.set(0,-fLen,0); a.add(b); seg(b,mat,fR*0.7,fR*0.35,fLen*0.9,0.03,i+11); if(claw)cone(b,clawMat||mat,fR*0.45,fLen*0.8,0,-fLen*0.9-fLen*0.35,0,Math.PI,0); h.fing.push([a,b]); }
+    return h; };
+  return {mesh,ell,seg,cone,hand};
+}
+function curlHand(h,k){ if(!h||!h.fing)return; for(let i=0;i<h.fing.length;i++){ const f=h.fing[i],v=k*(1+0.12*(i%2)); f[0].rotation.x=-0.15-0.95*v; f[1].rotation.x=-0.2-1.15*v; } }
+function zOnEll(x,y,c,rx,ry,rz){ return c.z+rz*Math.sqrt(Math.max(0.02,1-(x-c.x)*(x-c.x)/(rx*rx)-(y-c.y)*(y-c.y)/(ry*ry))); }
+
+function buildClown(o){ o=o||{}; const g=new THREE.Group(),{M,E}=mkBuilder(),K=orgKit(M),mini=!!o.mini,boss=!!o.boss;
+  const suit=M(mini?0x1d3d86:0x5a1020),suit2=M(mini?0xe6c43a:0xd8d0c0),skin=M(mini?0xd2c9b4:0xc9c2b2),skin2=M(mini?0xb7ae9a:0xaaa292),blk=M(0x0a0a0a),redM=M(0xb01418),glove=M(0xe9e4d8),hairC=M(mini?0x2a9d4a:0xd03020),teethM=M(0xe8e2c8),dark=M(0x120505),shoe=M(mini?0xe6c43a:0xb02020);
+  const T=new THREE.Group(); T.position.set(0,1.25,0); g.add(T);
+  /* gövde: pelvis + sarkık göbek + dar omuzlar + buruşuk yaka */
+  K.ell(g,suit,0.3,0.2,0.22,0,1.27,0,0.04,3);
+  K.ell(T,suit,0.34,0.5,0.27,0,0.5,0.02,0.05,4); K.ell(T,suit,0.4,0.28,0.26,0,0.97,0,0.04,5);
+  for(let i=0;i<4;i++)K.ell(T,i%2?blk:suit2,0.055,0.055,0.04,0,0.28+i*0.2,0.27-(i>2?0.03:0),0.1,i+1,8);
+  for(let i=0;i<3;i++){ const r=K.ell(T,suit2,0.31-i*0.04,0.045,0.31-i*0.04,0,1.12+i*0.035,0,0.12,i+20,12); r.rotation.z=(i-1)*0.05; }
+  if(boss)for(let i=0;i<3;i++){ const r=K.ell(T,suit2,0.36-i*0.05,0.04,0.36-i*0.05,0,1.1+i*0.05,0,0.14,i+30,12); r.rotation.x=(i-1)*0.06; }
+  K.seg(T,skin2,0.085,0.075,0.17,0.04,6).position.set(0,1.27,0);
+  /* kafa */
+  const head=new THREE.Group(); head.position.set(0,1.38,0.02); T.add(head);
+  K.ell(head,skin,0.26,0.27,0.27,0,0.07,0,0.035,7,14); K.ell(head,skin,0.2,0.1,0.14,0,-0.06,0.12,0.03,8,8);
+  for(const s of[-1,1]){ K.ell(head,skin2,0.1,0.034,0.08,s*0.1,0.185,0.2,0.05,s+9,8).rotation.z=-s*0.28; K.ell(head,dark,0.075,0.062,0.05,s*0.1,0.1,0.22,0.1,s+12,8);
+    const ey=K.mesh(new THREE.SphereGeometry(0.04,8,6),E(0xffe040),head,s*0.1,0.1,0.245); K.ell(head,redM,0.022,0.1,0.01,s*0.1,0.0,0.255,0.05,s+14,6); K.ell(head,skin2,0.04,0.075,0.03,s*0.265,0.05,-0.01,0.06,s+15,6); }
+  K.ell(head,redM,0.07,0.07,0.07,0,0.01,0.27,0.04,16,8);
+  /* çeneli ağız: kırmızı gülümseme boyası çenede, üst/alt dişler */
+  const jaw=new THREE.Group(); jaw.position.set(0,-0.1,-0.05); head.add(jaw);
+  const JC={x:0,y:-0.1,z:0.1}; K.ell(jaw,skin,0.2,0.12,0.2,JC.x,JC.y,JC.z,0.03,17,10);
+  K.ell(head,dark,0.15,0.07,0.1,0,-0.12,0.18,0,0,8);
+  const pts=[]; for(let i=0;i<=12;i++){ const t=i/6-1,x=0.175*t,y=JC.y-0.02+0.07*t*t; pts.push(new THREE.Vector3(x,y,zOnEll(x,y,JC,0.2,0.12,0.2)+0.006)); }
+  K.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),24,0.016,5),redM,jaw);
+  const tn=boss?9:7; for(let i=0;i<tn;i++){ const x=(i/(tn-1)-0.5)*0.2,y=JC.y+0.095; K.cone(jaw,teethM,boss?0.02:0.016,boss?0.085:0.06,x,y+0.02,zOnEll(x,y,JC,0.2,0.12,0.2)-0.012,0,0); }
+  const UC={x:0,y:0.07,z:0}; for(let i=0;i<tn;i++){ const x=(i/(tn-1)-0.5)*0.22,y=-0.075; K.cone(head,teethM,boss?0.02:0.016,boss?0.085:0.06,x,y-0.02,zOnEll(x,y,UC,0.26,0.27,0.27)-0.012,Math.PI,0); }
+  /* saç tutamları + koni şapka */
+  for(const s of[-1,1])for(let i=0;i<4;i++)K.ell(head,hairC,0.09-i*0.012,0.08-i*0.01,0.085,s*(0.25+i*0.03),0.12+i*0.05,-0.03-i*0.02,0.25,s*10+i,7);
+  const hat=K.cone(head,mini?M(0xe6c43a):M(0xa01820),0.2,0.62,0.02,0.52,-0.02,0,0.12); K.ell(head,mini?blk:suit2,0.05,0.05,0.05,0.05,0.84,-0.04,0,0,6);
+  /* kollar: üst kol + dirsek + sarkık kolluk + uzun parmaklı eldiven */
+  const arm=(sx)=>{ const a=new THREE.Group(); a.position.set(sx*0.43,1.0,0); T.add(a); K.ell(T,suit,0.12,0.11,0.12,sx*0.4,1.02,0,0.05,sx+40,8); K.seg(a,suit,0.1,0.082,0.72,0.06,sx+41);
+    const el=new THREE.Group(); el.position.set(0,-0.72,0); a.add(el); K.seg(el,suit,0.082,0.068,0.74,0.06,sx+42); const cuff=K.ell(el,suit2,0.1,0.035,0.1,0,-0.72,0,0.1,sx+43,10);
+    const h=K.hand(el,glove,0.055,0.06,boss?0.15:0.13,0.014,4,-0.76,false); return {a,el,h}; };
+  const aL=arm(-1),aR=arm(1);
+  /* bacaklar: bol pantolon + diz + dev ayakkabı (ayak yerle paralel kalır) */
+  const leg=(sx)=>{ const l=new THREE.Group(); l.position.set(sx*0.16,1.25,0); g.add(l); K.seg(l,suit,0.14,0.1,0.62,0.06,sx+50);
+    const kn=new THREE.Group(); kn.position.set(0,-0.62,0); l.add(kn); K.seg(kn,suit,0.1,0.078,0.54,0.06,sx+51);
+    const ft=new THREE.Group(); ft.position.set(0,-0.54,0); kn.add(ft); K.ell(ft,shoe,0.14,0.085,0.36,0,0.0,0.13,0.04,sx+52,10); K.ell(ft,shoe,0.12,0.09,0.12,0,0.015,0.36,0.05,sx+53,8); K.ell(ft,blk,0.145,0.03,0.37,0,-0.075,0.13,0,0,8); return {l,kn,ft}; };
+  const lL=leg(-1),lR=leg(1);
+  return {g,head,jaw,torso:T,legL:lL.l,legR:lR.l,kneeL:lL.kn,kneeR:lR.kn,footL:lL.ft,footR:lR.ft,armL:aL.a,armR:aR.a,elbowL:aL.el,elbowR:aR.el,handL:aL.h,handR:aR.h,hy:2.58,kind:1,lean:0.04}; }
+
+function buildBrute(){ const g=new THREE.Group(),{M,E}=mkBuilder(),K=orgKit(M);
+  const dk=M(0x15171b),dk2=M(0x0d0e11),mus=M(0x20242a),pl=M(0x8a8f86),pl2=M(0x6e736b),bone=M(0xc7c9b8),dark=M(0x050505),teethM=M(0xdddccc);
+  K.ell(g,dk,0.38,0.25,0.3,0,1.0,-0.02,0.05,3);
+  const T=new THREE.Group(); T.position.set(0,1.02,0); g.add(T);
+  K.ell(T,dk,0.42,0.4,0.33,0,0.34,0,0.06,4); K.ell(T,dk,0.64,0.5,0.43,0,0.84,0.02,0.05,5); K.ell(T,mus,0.4,0.3,0.32,0,1.12,-0.16,0.08,6);
+  for(const s of[-1,1]){ K.ell(T,mus,0.3,0.24,0.3,s*0.5,1.06,-0.02,0.08,s+7,9); for(let i=0;i<3;i++)K.ell(T,pl2,0.26,0.022,0.1,s*0.1,0.66+i*0.13,0.37,0.1,i+s,8).rotation.z=-s*0.22; }
+  for(let i=0;i<7;i++){ K.cone(T,bone,0.05-i*0.003,0.34-i*0.02,0,0.45+i*0.13,-0.31-(i>3?0.0:0.0),-0.85-i*0.03,0).position.z=-0.28-(i>3?(i-3)*0.03:0); }
+  const head=new THREE.Group(); head.position.set(0,1.18,0.42); T.add(head); K.ell(head,dk,0.15,0.15,0.26,0,-0.08,-0.2,0.06,9,8);
+  K.ell(head,pl,0.2,0.26,0.31,0,0.03,0.05,0.045,10,12); for(const s of[-1,1]){ K.cone(head,bone,0.045,0.3,s*0.12,0.28,-0.12,-0.7,-s*0.35); }
+  for(let i=0;i<4;i++){ const x=(i-1.5)*0.075,y=0.12-(i%2)*0.09; K.ell(head,dark,0.04,0.04,0.03,x,y,0.34,0.1,i,6); K.mesh(new THREE.SphereGeometry(0.026,6,5),E(0xff2020),head,x,y,0.352); }
+  K.ell(head,dark,0.018,0.03,0.01,-0.035,-0.04,0.35,0,0,5); K.ell(head,dark,0.018,0.03,0.01,0.035,-0.04,0.35,0,0,5);
+  const jaw=new THREE.Group(); jaw.position.set(0,-0.1,-0.02); head.add(jaw); K.ell(jaw,pl2,0.15,0.1,0.24,0,-0.09,0.17,0.05,11,9);
+  K.ell(head,dark,0.13,0.07,0.15,0,-0.12,0.2,0,0,7);
+  for(let i=0;i<9;i++){ const x=(i-4)*0.03,h=0.07+((i*7)%3)*0.02; K.cone(jaw,teethM,0.014,h,x,-0.02+h*0.4,0.3-Math.abs(i-4)*0.025,0,0); }
+  for(let i=0;i<9;i++){ const x=(i-4)*0.03,h=0.06+((i*5)%3)*0.025; K.cone(head,teethM,0.014,h,x,-0.1-h*0.4,0.32-Math.abs(i-4)*0.025,Math.PI,0); }
+  const arm=(sx)=>{ const a=new THREE.Group(); a.position.set(sx*0.72,1.08,0); T.add(a); K.seg(a,dk,0.17,0.13,0.85,0.08,sx+20);
+    const el=new THREE.Group(); el.position.set(0,-0.85,0); a.add(el); K.seg(el,pl,0.13,0.09,0.95,0.07,sx+21); for(let i=0;i<3;i++)K.ell(el,pl2,0.05,0.12,0.04,0,-0.3-i*0.22,0.07,0.1,i+sx,6);
+    const h=K.hand(el,pl,0.1,0.09,0.17,0.026,4,-0.98,true,bone); return {a,el,h}; };
+  const aL=arm(-1),aR=arm(1);
+  const leg=(sx)=>{ const l=new THREE.Group(); l.position.set(sx*0.3,1.0,0); g.add(l); K.seg(l,dk,0.22,0.15,0.52,0.07,sx+30);
+    const kn=new THREE.Group(); kn.position.set(0,-0.52,0); l.add(kn); K.seg(kn,dk,0.15,0.1,0.4,0.07,sx+31);
+    const ft=new THREE.Group(); ft.position.set(0,-0.4,0); kn.add(ft); K.ell(ft,dk2,0.12,0.07,0.22,0,0,0.1,0.05,sx+32,8); for(let i=-1;i<=1;i++)K.cone(ft,bone,0.02,0.16,i*0.06,-0.02,0.34,Math.PI/2,0); return {l,kn,ft}; };
+  const lL=leg(-1),lR=leg(1);
+  return {g,head,jaw,torso:T,legL:lL.l,legR:lR.l,kneeL:lL.kn,kneeR:lR.kn,footL:lL.ft,footR:lR.ft,armL:aL.a,armR:aR.a,elbowL:aL.el,elbowR:aR.el,handL:aL.h,handR:aR.h,hy:1.75,kind:2,lean:0.5}; }
+
+/* yürüyüş / koşu: kalça-diz-ayak zinciri, zıt kol sallanması, gövde bükülmesi (monster + boss + mini ortak) */
+function gaitPose(r,ph,amp,rk,B){
+  const s=Math.sin(ph),c=Math.cos(ph),A=(B?0.5:0.6)*(0.55+0.45*rk)*amp,Kn=(B?0.85:1.0)*(0.5+0.5*rk)*amp;
+  r.legL.rotation.x=-A*s; r.legR.rotation.x=A*s; r.kneeL.rotation.x=Kn*Math.max(0,c)+0.05; r.kneeR.rotation.x=Kn*Math.max(0,-c)+0.05;
+  r.footL.rotation.x=-(r.legL.rotation.x+r.kneeL.rotation.x)+0.1*Math.max(0,-s)*amp; r.footR.rotation.x=-(r.legR.rotation.x+r.kneeR.rotation.x)+0.1*Math.max(0,s)*amp;
+  const aa=(B?0.55:0.45)*(0.5+0.5*rk)*amp,el=(B?0.3:0.25)+(B?0.4:0.5)*rk;
+  r.armL.rotation.x=aa*s; r.armR.rotation.x=-aa*s; r.armL.rotation.z=-0.05-0.05*amp; r.armR.rotation.z=0.05+0.05*amp;
+  r.elbowL.rotation.x=-(el+0.45*amp*Math.max(0,-s)); r.elbowR.rotation.x=-(el+0.45*amp*Math.max(0,s));
+  r.torso.rotation.y=-s*(B?0.14:0.12)*amp; r.torso.rotation.z=c*(B?0.07:0.045)*amp; return {s,c};
+}
+function resetPose(r){ for(const k of ['legL','legR','kneeL','kneeR','footL','footR','armL','armR','elbowL','elbowR','torso','head','jaw'])r[k].rotation.set(0,0,0); r.torso.scale.set(1,1,1); curlHand(r.handL,0.2); curlHand(r.handR,0.2); }
+function mkMonster(kind){ const rig=kind===1?buildClown():buildBrute(); resetPose(rig); rig.torso.rotation.x=rig.lean; rig.g.visible=false; scene.add(rig.g);
   return {kind,rig,x:0,z:0,yaw:0,state:'patrol',path:null,pi:1,pathT:0,reached:true,active:false,phase:0,stepAcc:0,lostT:0,look:0,tx:0,tz:0,lastX:0,lastZ:0,search:[],cool:0,bang:0,hideCool:0,siegeT:rnd(55,90),siege:null,spawnT:60,patrolT:0,growlT:0,
     patrolSp:kind===1?2.0:1.3,invSp:kind===1?2.7:1.8,chaseSp:kind===1?4.7:3.5,vis:kind===1?26:16,fov:1.05,catchR:kind===1?1.1:1.5,hear:kind===1?0.55:1.0}; }
 const m1=mkMonster(1), m2=mkMonster(2), MONS=[m1,m2];
@@ -2031,11 +2258,35 @@ function updMonster(m,dt){ if(!m.active)return;
     if(pd<m.catchR&&state!=='dead'&&!playerSafe()&&segClear(m.x,m.z,player.x,player.z,true))die(m); }
   if(inStaffZone(m.x,m.z,0)){ const dE=m.x-3.9,dW=-3.9-m.x,dS=m.z-55.0,dN=61.9-m.z; m.x=m.x<=0?-4.5:4.6; m.path=null; if(m.state==='chase'){ m.state='investigate'; m.tx=m.x; m.tz=Math.min(m.z,54.5); } }
   /* hareket animasyonu ve ayak sesleri */
-  const sp=m.moved/Math.max(dt,0.001); m.phase+=m.moved*(m.kind===1?2.2:2.6); const amp=Math.min(0.8,sp*0.25); const r=m.rig;
-  r.legL.rotation.x=Math.sin(m.phase)*amp; r.legR.rotation.x=-Math.sin(m.phase)*amp; r.armL.rotation.x=-Math.sin(m.phase)*amp*0.8+(m.state==='chase'?-0.5:0); r.armR.rotation.x=Math.sin(m.phase)*amp*0.8+(m.state==='chase'?-0.5:0);
-  r.head.rotation.z=Math.sin(S.t*(m.state==='chase'?14:2.2)+m.kind)*(m.state==='chase'?0.12:0.06);
-  m.stepAcc+=m.moved; if(m.stepAcc>(m.kind===1?1.9:1.5)){ m.stepAcc=0; if(pd<45)SFX.mstep(m.x,m.z,m.kind===2); }
-  r.g.position.set(m.x,Math.abs(Math.sin(m.phase))*0.04,m.z); r.g.rotation.y=m.yaw; }
+  const sp=m.moved/Math.max(dt,0.001); m.phase+=m.moved*(m.kind===1?2.2:2.6); animMon(m,dt,sp,pd);
+  m.stepAcc+=m.moved; if(m.stepAcc>(m.kind===1?1.9:1.5)){ m.stepAcc=0; if(pd<45)SFX.mstep(m.x,m.z,m.kind===2); } }
+/* canavar animasyonu: yürüyüş/koşu döngüsü + nefes + kafa takibi + çene + el kıvrımı + atılma */
+function animMon(m,dt,sp,pd){
+  const r=m.rig,B=m.kind===2,chase=m.state==='chase',t=S.t;
+  const amp=Math.min(1,sp/(chase?(B?3.5:4.7):(B?1.8:2.4)));
+  m.runK=lerp(m.runK||0,chase?1:0,Math.min(1,dt*5)); const rk=m.runK;
+  m.lg=lerp(m.lg||0,(chase&&pd<3.4)?Math.min(1,(3.4-pd)/1.7):0,Math.min(1,dt*8)); const lg=m.lg;
+  resetPose(r); const {s,c}=gaitPose(r,m.phase,amp,rk,B);
+  /* gövde: eğim + çift frekanslı sarsıntı + nefes */
+  const lean=r.lean+(B?0.12:0.2)*rk*amp+0.28*lg;
+  r.torso.rotation.x=lean+Math.sin(m.phase*2)*0.018*amp;
+  const br=Math.sin(t*(1.6+rk*3.2)+m.kind*1.7); r.torso.scale.set(1+br*0.008,1+br*0.016*(1+rk),1+br*0.012);
+  /* kollar: kovalarken öne uzanır, atılırken (lunge) yakalamaya uzanır */
+  if(rk>0.01||lg>0.01){ const reach=(B?-0.35:-0.95)*rk-1.0*lg; r.armL.rotation.x+=reach*(0.6+0.4*Math.sin(t*(B?7:11))); r.armR.rotation.x+=reach*(0.6+0.4*Math.cos(t*(B?7:11)));
+    r.armL.rotation.z-=(B?0.1:0.35)*rk; r.armR.rotation.z+=(B?0.1:0.35)*rk; r.elbowL.rotation.x-=0.4*lg; r.elbowR.rotation.x-=0.4*lg; }
+  /* kafa: oyuncuyu izler; devriyede etrafa bakınır; kafa gövde bükülmesini dengeler */
+  let da=Math.atan2(player.x-m.x,player.z-m.z)-m.yaw; da=Math.atan2(Math.sin(da),Math.cos(da));
+  let want; if(chase||(pd<16&&Math.abs(da)<1.4&&!player.hidden))want=clamp(da,-1.05,1.05); else want=Math.sin(t*(m.state==='investigate'?1.7:0.6)+m.kind*2)*(m.state==='investigate'?0.9:0.5);
+  m.hdY=lerp(m.hdY||0,want,Math.min(1,dt*(chase?10:3.5)));
+  m.tw=(m.tw||0)*Math.pow(0.02,dt); if(Math.random()<dt*0.25)m.tw=(Math.random()<0.5?-1:1)*(B?0.18:0.32);
+  r.head.rotation.y=m.hdY-r.torso.rotation.y*0.7;
+  r.head.rotation.x=-lean*(B?0.65:0.7)+(B?0.12:-0.05)+(chase?(B?0.18:-0.1):0)-0.15*lg;
+  r.head.rotation.z=Math.sin(t*0.8+m.kind)*(B?0.04:0.12)+r.torso.rotation.z*-0.6+m.tw+(chase?Math.sin(t*(B?9:14))*0.07:0);
+  /* çene: boşta hafif aralık, kovalarken takırdar, atılırken sonuna kadar açılır */
+  r.jaw.rotation.x=(B?0.1:0.05)+Math.sin(t*1.3+m.kind)*0.035+rk*(B?0.35:0.3)*(0.6+0.4*Math.sin(t*(B?18:26)))+lg*0.5;
+  curlHand(r.handL,0.25+0.12*Math.sin(t*1.4)+rk*(0.35+0.25*Math.sin(t*10))+lg*0.4); curlHand(r.handR,0.25+0.12*Math.sin(t*1.4+2)+rk*(0.35+0.25*Math.cos(t*10))+lg*0.4);
+  r.g.position.set(m.x,Math.abs(c)*(B?0.02:0.035)*amp*(1+rk)-0.03*amp,m.z); r.g.rotation.y=m.yaw;
+}
 function visibleToPlayer(x,z){ const dx=x-player.x,dz=z-player.z,d=Math.hypot(dx,dz); if(d>55)return false; let da=Math.atan2(-dx,-dz)-player.yaw; da=Math.atan2(Math.sin(da),Math.cos(da)); if(Math.abs(da)>1.0)return false; return segClear(player.x,player.z,x,z,false); }
 function updM2Spawn(dt){ if(m2.active){ if(m2.state==='patrol'&&m2.patrolT>55&&!visibleToPlayer(m2.x,m2.z)&&Math.hypot(m2.x-player.x,m2.z-player.z)>28&&!S.final){ hideMon(m2); m2.spawnT=rnd(25,45); } return; }
   m2.spawnT-=dt; if(m2.spawnT>0)return; const cand=DARK.filter(p=>(!p.p||progress.gateTunnel)&&Math.hypot(p.x-player.x,p.z-player.z)>(S.final?22:30)&&!visibleToPlayer(p.x,p.z)); if(!cand.length){ m2.spawnT=4; return; }
@@ -2054,7 +2305,7 @@ function updateDead(dt){ deadT+=dt; const m=deadM,f=m.rig.g.rotation.y,fx=Math.s
   const dist=lerp(1.6,0.62,Math.min(1,deadT*4)); const sh=0.04*(1-Math.min(1,deadT/1.8));
   cam.position.set(hx+fx*dist+(Math.random()-0.5)*sh*3,hy+0.02+(Math.random()-0.5)*sh*3,hz+fz*dist+(Math.random()-0.5)*sh*3); cam.lookAt(hx,hy,hz);
   cam.fov=lerp(settings.fov,98,Math.min(1,deadT*3)); cam.updateProjectionMatrix(); scareLight.position.set(cam.position.x,cam.position.y+0.4,cam.position.z);
-  m.rig.head.rotation.z=Math.sin(deadT*40)*0.25; m.rig.head.rotation.x=Math.sin(deadT*33)*0.15; m.rig.armL.rotation.x=-1.2+Math.sin(deadT*25)*0.3; m.rig.armR.rotation.x=-1.2+Math.cos(deadT*25)*0.3;
+  m.rig.head.rotation.z=Math.sin(deadT*40)*0.25; m.rig.head.rotation.x=Math.sin(deadT*33)*0.15; m.rig.armL.rotation.x=-1.2+Math.sin(deadT*25)*0.3; m.rig.armR.rotation.x=-1.2+Math.cos(deadT*25)*0.3; m.rig.jaw.rotation.x=0.75+Math.sin(deadT*30)*0.12; m.rig.elbowL.rotation.x=-0.5; m.rig.elbowR.rotation.x=-0.5; curlHand(m.rig.handL,0.9); curlHand(m.rig.handR,0.9); m.rig.torso.rotation.x=m.rig.lean+0.25*Math.min(1,deadT*3);
   $('flashov').style.opacity=deadT<0.12?0.9:Math.max(0,0.6-deadT*0.8);
   if(deadT>2.0&&$('dead').classList.contains('hid')){ show('dead'); } }
 function restart(){ if(MPS.net)MPS.net.respawn(); hide('dead'); scareLight.intensity=0; cam.fov=settings.fov; cam.updateProjectionMatrix(); $('flashov').style.opacity=0; resetActors(); show('hud'); state='playing'; if(!fallback)tryLock(); msg('Kulübeye geri döndün. İlerlemen korundu.',4); refreshItemsHUD(); }
@@ -2275,7 +2526,7 @@ window.NobetciAPI={
   dbg:{BOSSC,SPB,TW,BCORE,weaponUse,equipWeapon,spStartBoss,openTech,buyItem,getW:()=>curW},
   setTech(d){ if(!d)return; mpw.gold=Math.max(0,d.gold|0); mpw.w=Array.isArray(d.weapons)?d.weapons.filter(id=>BCORE.WEAPONS[id]):[]; if(curW&&!mpw.w.includes(curW))unequipWeapon(); if(d.wield&&mpw.w.includes(d.wield)&&!BOSSC.down&&curW!==d.wield)applyEquip(d.wield,true); else if(d.wield===null&&curW)unequipWeapon(); refreshGold(); refreshWbar(); if(techOpen)renderTech(); },
   bossState(s){ if(s&&s.b){ BOSSC.snap=s; BOSSC.newSnap=true; BOSSC.snapAt=performance.now(); } },
-  bossFx(e){ if(e)bossFx(e); }, bossHurt(d){ bossHurt(d&&d.k); }, bossDown(d){ if(d&&d.id!==MPS.selfId)msg((d.name||'Oyuncu')+' öldü!',2.5); }, bossEnd(d){ bossEnd(d&&d.result); if(d&&d.result!=='win')BOSSC.snap=BOSSC.snap; },
+  bossFx(e){ if(e)bossFx(e); }, bossHurt(d){ bossHurt(d&&d.k,d&&d.hp); }, bossDown(d){ if(d&&d.id!==MPS.selfId)msg((d.name||'Oyuncu')+' öldü!',2.5); }, bossEnd(d){ bossEnd(d&&d.result); if(d&&d.result!=='win')BOSSC.snap=BOSSC.snap; },
   bossWarn(d){ if(d)msg('Boss savaşı '+d.in+' saniye sonra başlıyor!',4); },
   bossTeleport(d){ if(d&&typeof d.x==='number'&&typeof d.z==='number')doTeleport(d,d.zone==='wait'||d.zone==='arena'?d.zone:'park'); },
   setTags(tg){ tg|=0; const t={staff:!!(tg&1),dev:!!(tg&2),owner:!!(tg&4)}; if(t.staff!==MPS.tags.staff||t.dev!==MPS.tags.dev||t.owner!==MPS.tags.owner){ MPS.tags=t; syncAC(); } },
@@ -2845,9 +3096,9 @@ function createGame(opts) {
       p.lastAtk = now;
       const r = BossCore.attackResult(S, p, W.id, d.yaw, clamp(d.pitch, -1.6, 1.6));
       if (!r.hit) return ok(ack, { hit: false });
-      const res = BossCore.applyDamage(S, p.id, r.dmg);
+      const res = BossCore.applyDamage(S, p.id, r.dmg, r.mini);
       if (res.gold) addGold(p, res.gold);
-      ok(ack, { hit: true, dmg: r.dmg, gold: res.gold });
+      ok(ack, { hit: true, dmg: r.dmg, gold: res.gold, mini: !!r.mini, killed: !!res.killed });
     });
 
     sock.on('net:ping', (d, ack) => { if (typeof ack === 'function') ack(); });

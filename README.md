@@ -130,3 +130,9 @@ Eski Node.js sunucusu (`npm start`, `online.bat`) hâlâ çalışır; menüden *
 - **Yüksek:** piksel başına PBR ışıklandırma, ıslak asfalt yansımaları, duvar/zemin kir ve su izi dokusu (üç yönlü, UV gerektirmez), yumuşak gölgeler, el feneri ışık huzmesi, lamba haleleri, ay hâlesi, havada toz, sinematik ton eğrisi (ACES), renk derecelendirme, vinyet ve film greni.
 - **Düşük:** köşe başına ışıklandırma, hafif vinyet; telefonlarda varsayılan budur. Yüksek, gerçek telefonda **denenmedi** (yalnızca masaüstü Chromium'da yazılım çizimiyle).
 - Canavar/karakter modelleri hâlâ basit geometriden oluşur; yüzey ve ışık iyileştirildi, model kalitesi değişmedi.
+
+## Organik modeller ve Mini Boss saldırısı
+- **Canavarlar ve Dev Palyaço** artık eklemli: kalça–diz–ayak, omuz–dirsek–el (parmaklar kıvrılır), omurga/gövde bükülmesi, çene, kafa takibi. Koşarken öne eğilir, yakalamaya atılırken kollar uzanır, çene takırdar; boşta nefes alır.
+- **Boss animasyonları**: yumruk (diz bükme, gövde bükülmesi, dirsek kurma → savurma → toparlanma, hâlâ 1 sn gerçek uyarı), ses dalgası (nefes çekme, gövde şişmesi, çene açılması → kükreme), yorgunluk (eğilip soluma), ölüm (dizler çöker).
+- **Mini Boss çağırma** (`summon`): boss ara sıra (en az 30 sn arayla, uygun anda %22 şansla, ortada mini yokken) kollarını kaldırır; 2 sn boyunca arenada mor halkalar belirir (hasar yok), sonra 3–5 mini palyaço çıkar. Mini bosslar en yakın oyuncuya koşar, 0,55 sn kolunu kaldırır (kırmızı daire = vuruş alanı, kaçılabilir) ve vurur: **34 hasar** (ölümcül değil, can 100). Öldürmek 25 altın + hasar altını verir; boss canından düşmez; boss ölünce / savaş bitince kaybolurlar.
+- Kararları sunucu (veya P2P'de host) verir; hız, uyarı süresi, hasar `public/boss-core.js` içindeki `MINI` ve `TIMING.summon*` değerlerinden ayarlanır.

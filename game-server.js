@@ -518,9 +518,9 @@ function createGame(opts) {
       p.lastAtk = now;
       const r = BossCore.attackResult(S, p, W.id, d.yaw, clamp(d.pitch, -1.6, 1.6));
       if (!r.hit) return ok(ack, { hit: false });
-      const res = BossCore.applyDamage(S, p.id, r.dmg);
+      const res = BossCore.applyDamage(S, p.id, r.dmg, r.mini);
       if (res.gold) addGold(p, res.gold);
-      ok(ack, { hit: true, dmg: r.dmg, gold: res.gold });
+      ok(ack, { hit: true, dmg: r.dmg, gold: res.gold, mini: !!r.mini, killed: !!res.killed });
     });
 
     sock.on('net:ping', (d, ack) => { if (typeof ack === 'function') ack(); });
