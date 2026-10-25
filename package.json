@@ -5,9 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/boss-core.js && node test/smoke.js && node test/boss-server.js"
+    "test": "node test/boss-core.js && node test/game-core.js && node test/smoke.js && node test/boss-server.js",
+    "build": "node tools/bundle.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5"

@@ -22,7 +22,9 @@
     } catch (e) { return 'tmp' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
   }
 
-  const S = { sock: null, room: null, me: null, code: '', name: '', ownerKey: '', inGame: false, leaving: false, dropped: false, hammer: null, pingMs: null, sendT: null, pingT: null };
+  const P2P = window.NobetciP2P || { supported: false };
+  const LS_MODE = 'nobetci2_mode';
+  const S = { mode: 'p2p', p2pCode: '', connErr: '', sock: null, room: null, me: null, code: '', name: '', ownerKey: '', inGame: false, leaving: false, dropped: false, hammer: null, pingMs: null, sendT: null, pingT: null };
 
   /* ---------------------------------------------------------------- bağlantı durumu */
   function setNet(kind) {
@@ -53,6 +55,7 @@
     equip: (type, cb) => emitAck('hammer:equip', { type }, cb),
     hit: (targetId, cb) => emitAck('hammer:hit', { targetId }, cb),
     buy: (item, cb) => emitAck('shop:buy', { item }, cb),
+    wield: (item, cb) => emitAck('weapon:equip', { item }, cb),
     attack: (w, yaw, pitch, cb) => emitAck('weapon:attack', { w, yaw, pitch }, cb),
     bossStart: cb => emitAck('boss:start', {}, cb),
     bossInfo: cb => emitAck('boss:info', {}, cb),
@@ -82,6 +85,11 @@
     const code = $('kPass').value, msg = $('kUnbanMsg'); if (!code) { msg.textContent = 'Şifreyi yaz.'; return; }
     $('kUnbanGo').disabled = true; msg.textContent = 'Kontrol ediliyor…';
     try {
+      if (S.mode === 'p2p') {
+        const pr = await P2P.unban(S.p2pCode, getCid(), code);
+        if (pr && pr.ok) { msg.textContent = 'Ban kaldırıldı! Ana menüye dönülüyor…'; setTimeout(() => location.reload(), 1200); return; }
+        msg.textContent = (pr && pr.error) || 'Başarısız.'; $('kUnbanGo').disabled = false; return;
+      }
       const r = await fetch('/api/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: getCid(), code }) });
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.ok) { msg.textContent = 'Ban kaldırıldı! Ana menüye dönülüyor…'; setTimeout(() => location.reload(), 1200); return; }
@@ -128,7 +136,7 @@
   }
   $('hKick').onclick = () => selHammer('kick'); $('hBan').onclick = () => selHammer('ban'); $('hScare').onclick = () => selHammer('jumpscare');
   $('lStart').onclick = () => emitAck('room:start', {}, r => { if (!r.ok) lobbyMsg(r.error); });
-  $('lLeave').onclick = () => { if (S.sock) S.sock.emit('room:leave'); S.code = ''; S.room = null; S.me = null; hide('lobby'); show('mpMenu'); mpMsg(''); };
+  $('lLeave').onclick = () => { if (S.sock) S.sock.emit('room:leave'); if (S.mode === 'p2p') teardownP2P(); S.code = ''; S.room = null; S.me = null; hide('lobby'); show('mpMenu'); mpMsg(''); };
   $('lCopy').onclick = () => { const c = S.code; try { navigator.clipboard.writeText(c); lobbyMsg('Oda kodu kopyalandı: ' + c); } catch (e) { lobbyMsg('Oda kodu: ' + c); } };
   $('lChatIn').addEventListener('keydown', e => {
     e.stopPropagation();
@@ -162,19 +170,21 @@
     });
   }
 
-  function connect() {
+  function connect(factory) {
     if (S.sock) return S.sock;
     setNet('connecting'); show('netstat');
     API.setNet(netApi);
-    const sock = io({ auth: { clientId: getCid() }, transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 700, reconnectionDelayMax: 4000, timeout: 8000 });
+    const sock = factory ? factory() : io({ auth: { clientId: getCid() }, transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 700, reconnectionDelayMax: 4000, timeout: 8000 });
     S.sock = sock;
     sock.on('connect', () => { API.setSelf(sock.id); setNet('online'); startPing(); if (S.dropped && S.code && !S.leaving) rejoin(); });
     sock.on('disconnect', reason => { stopPing(); if (S.leaving) return; setNet('offline'); if (S.code) S.dropped = true; if (reason === 'io server disconnect') setTimeout(() => { if (S.sock === sock && !S.leaving) sock.connect(); }, 1000); });
     sock.io.on('reconnect_attempt', () => { if (!S.leaving) setNet(S.dropped ? 'offline' : 'connecting'); });
     sock.on('connect_error', err => {
-      if (err && err.message === 'banned') { sock.disconnect(); S.sock = null; hideNet(); showExpelled('ENGELLENDİN', 'Bu sunucudan kalıcı olarak engellendin.', true); return; }
-      setNet(S.dropped ? 'offline' : 'connecting'); if (!S.code) mpMsg('Sunucuya ulaşılamıyor… yeniden deneniyor.');
+      if (err && err.message === 'banned') { sock.disconnect(); S.sock = null; hideNet(); showExpelled('ENGELLENDİN', S.mode === 'p2p' ? 'Bu odadan kalıcı olarak engellendin.' : 'Bu sunucudan kalıcı olarak engellendin.', true); return; }
+      if (err && err.message === 'not-found') { sock.disconnect(); S.sock = null; hideNet(); S.connErr = 'Oda bulunamadı. Kodu kontrol et; odayı kuran oyuncunun oyunu açık olmalı.'; return; }
+      setNet(S.dropped ? 'offline' : 'connecting'); if (!S.code) mpMsg(S.mode === 'p2p' ? 'Host\'a bağlanılıyor… (birkaç saniye sürebilir)' : 'Sunucuya ulaşılamıyor… yeniden deneniyor.');
     });
+    sock.on('host-gone', () => { if (S.leaving) return; showExpelled('ODA KAPANDI', 'Odayı kuran oyuncu (HOST) oyundan çıktı veya bağlantısı koptu.'); });
     sock.on('room:update', room => {
       S.room = room; API.setSelf(sock.id);
       const me = room.players.find(p => p.id === sock.id); if (me) { S.me = me; API.setAdmin(me.admin); API.setTags(me.tg); }
@@ -226,24 +236,83 @@
     lobbyMsg(r.you.keyResult === 'bad' ? 'Sahip anahtarı yanlış — normal oyuncu olarak katıldın.' : r.you.keyResult === 'locked' ? 'Çok fazla hatalı anahtar denemesi — geçici olarak kilitlendi.' : r.you.admin ? 'Oyun sahibi olarak doğrulandın.' : '');
     renderLobby();
   }
+  /* ---------------- İNTERNET (P2P) modu: Node.js gerekmez, yalnızca oda kodu ---------------- */
+  function teardownP2P() {
+    if (S.sock) { S.leaving = true; try { S.sock.disconnect(); } catch (e) { /* ignore */ } S.sock = null; S.leaving = false; }
+    hideNet(); S.code = ''; S.room = null; S.me = null; S.inGame = false; S.dropped = false;
+    if (P2P.hostInfo && P2P.hostInfo()) P2P.stopHost();
+  }
+  function waitConnected(ms) {
+    return new Promise(res => {
+      const t0 = Date.now(), t = setInterval(() => {
+        if (S.sock && S.sock.connected) { clearInterval(t); res(true); }
+        else if (!S.sock || S.connErr || Date.now() - t0 > ms) { clearInterval(t); res(false); }
+      }, 150);
+    });
+  }
+  const P2P_HINT = '\nİnternetin açık mı? Okul/iş ağı veya VPN peerjs.com\'u engelliyor olabilir. Telefon verisini dene ya da SUNUCU modunu (online.bat) kullan.';
+  async function p2pCreate() {
+    const t0 = Date.now(), iv = setInterval(() => mpMsg('Oda kuruluyor… eşleştirme sunucusuna bağlanılıyor (' + Math.round((Date.now() - t0) / 1000) + ' sn, en çok 15)'), 500);
+    try {
+      mpMsg('Oda kuruluyor… eşleştirme sunucusuna bağlanılıyor');
+      const h = await P2P.startHost(); S.p2pCode = h.code; S.ownerKey = h.hostKey; S.connErr = '';
+      const cid = getCid(); connect(() => P2P.hostSocket(cid));
+      if (!(await waitConnected(5000))) { busy(false); mpMsg('Oda kurulamadı.'); teardownP2P(); return; }
+      emitAck('room:create', { name: S.name, ownerKey: S.ownerKey, code: h.code }, r => { busy(false); if (!r.ok) { mpMsg(r.error); teardownP2P(); return; } mpMsg(''); enterLobby(r); });
+    } catch (e) { busy(false); mpMsg('Oda kurulamadı: ' + ((e && e.message) || e) + P2P_HINT); teardownP2P(); }
+    finally { clearInterval(iv); }
+  }
+  async function p2pJoin(code) {
+    S.p2pCode = code; S.connErr = ''; S.ownerKey = '';
+    const cid = getCid(); connect(() => P2P.guest(code, cid));
+    const ok = await waitConnected(40000);
+    if (!ok) { busy(false); mpMsg((S.connErr || 'Host\'a bağlanılamadı. Kodu kontrol et; HOST oyunu açık olmalı.') + (S.connErr ? '' : P2P_HINT)); teardownP2P(); return; }
+    emitAck('room:join', { code, name: S.name }, r => { busy(false); if (!r.ok) { mpMsg(r.error); teardownP2P(); return; } mpMsg(''); enterLobby(r); });
+  }
   $('mpCreate').onclick = () => {
     readForm(); API.initAudio(); busy(true); mpMsg('Oda oluşturuluyor…');
+    if (S.mode === 'p2p') { p2pCreate(); return; }
     whenConnected(() => emitAck('room:create', { name: S.name, ownerKey: S.ownerKey }, r => { busy(false); if (!r.ok) { mpMsg(r.error); return; } mpMsg(''); enterLobby(r); }), () => { busy(false); mpMsg('Sunucuya bağlanılamadı.'); });
   };
   $('mpJoin').onclick = () => {
     readForm(); API.initAudio(); const code = ($('mpCode').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length !== 5) { mpMsg('Oda kodu 5 karakter olmalı.'); return; }
     busy(true); mpMsg('Katılınıyor…');
+    if (S.mode === 'p2p') { p2pJoin(code); return; }
     whenConnected(() => emitAck('room:join', { code, name: S.name, ownerKey: S.ownerKey }, r => { busy(false); if (!r.ok) { mpMsg(r.error); return; } mpMsg(''); enterLobby(r); }), () => { busy(false); mpMsg('Sunucuya bağlanılamadı.'); });
   };
+  /* bağlantı türü seçimi */
+  function setMode(m) {
+    if (m === 'p2p' && !P2P.supported) m = 'server';
+    S.mode = m; try { localStorage.setItem(LS_MODE, m); } catch (e) { /* ignore */ }
+    $('mpModeP2P').classList.toggle('sel', m === 'p2p'); $('mpModeSrv').classList.toggle('sel', m === 'server');
+    $('mpKeyRow').style.display = m === 'server' ? '' : 'none';
+    $('mpModeInfo').textContent = m === 'p2p'
+      ? 'Kurulum yok: odayı kuran kişi (HOST) sekmeyi açık tutar, arkadaşların oda koduyla farklı internetten bile girer.'
+      : 'Node.js sunucusu gerekir (online.bat / npm start). Aynı Wi-Fi veya sunucu adresi.';
+  }
   $('mpCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('mpJoin').click(); });
   for (const id of ['mpName', 'mpKey', 'lChatIn']) $(id).addEventListener('keydown', e => e.stopPropagation());
-  $('mpBack').onclick = () => { hide('mpMenu'); if (S.sock && !S.code) { S.leaving = true; S.sock.disconnect(); S.sock = null; S.leaving = false; hideNet(); } };
+  $('mpBack').onclick = () => { hide('mpMenu'); if (S.mode === 'p2p') { teardownP2P(); return; } if (S.sock && !S.code) { S.leaving = true; S.sock.disconnect(); S.sock = null; S.leaving = false; hideNet(); } };
+  function enterServerMode() {
+    const mm = $('mpMsg'); mm.style.whiteSpace = 'pre-line'; mm.style.fontSize = '15px'; mm.style.lineHeight = '1.5';
+    if (typeof io === 'undefined') {
+      mpMsg('Sunucu modu için oyunu Node.js sunucusundan açmalısın (online.bat / npm start).\nSunucusuz oynamak için İNTERNET modunu seç.'); busy(true); return false; }
+    busy(false); connect(); return true;
+  }
+  $('mpModeSrv').onclick = () => { if (S.mode === 'server') return; teardownP2P(); setMode('server'); enterServerMode(); };
+  $('mpModeP2P').onclick = () => {
+    if (!P2P.supported) { mpMsg('Bu tarayıcıda internet modu çalışmıyor (WebRTC yok). Sunucu modunu kullan.'); return; }
+    if (S.sock && !S.code) { S.leaving = true; try { S.sock.disconnect(); } catch (e) { /* ignore */ } S.sock = null; S.leaving = false; hideNet(); }
+    setMode('p2p'); busy(false); mpMsg('');
+  };
   $('bMP').onclick = () => {
-    API.initAudio(); show('mpMenu'); mpMsg('');
+    API.initAudio(); show('mpMenu'); mpMsg(''); busy(false);
     try { $('mpName').value = localStorage.getItem(LS_NAME) || ''; } catch (e) { /* ignore */ }
-    if (typeof io === 'undefined') { const mm = $('mpMsg'); mm.style.whiteSpace = 'pre-line'; mm.style.fontSize = '15px'; mm.style.lineHeight = '1.5';
-      mpMsg('⚠ index.html dosyasını çift tıklayarak açtın; multiplayer böyle çalışmaz.\n1) Node.js kur (nodejs.org)\n2) Proje klasöründe: npm install  →  npm start\n   (Windows: start.bat dosyasına çift tıkla)\n3) Tarayıcıda şunu aç: http://localhost:3000'); $('mpCreate').disabled = true; $('mpJoin').disabled = true; return; }
-    connect();
+    let m = typeof io !== 'undefined' ? 'server' : 'p2p';   // Node sunucusundan açıldıysa varsayılan sunucu modu; dosya olarak açıldıysa internet (P2P) modu
+    try { const sv = localStorage.getItem(LS_MODE); if (sv === 'p2p' || sv === 'server') m = sv; } catch (e) { /* ignore */ }
+    if (!P2P.supported) m = 'server'; else if (typeof io === 'undefined') m = 'p2p';
+    setMode(m);
+    if (S.mode === 'server') enterServerMode();
   };
 })();

@@ -1,7 +1,7 @@
 {
   "port": 3000,
-  "ownerKey": "CHANGE-ME-uzun-rastgele-bir-anahtar",
+  "ownerKey": "CHANGE-ME-uzun-bir-anahtar",
   "staffCode": "292016",
-  "trustProxy": false,
-  "allowedOrigins": []
+  "unbanCode": "CHANGE-ME-ban-acma-sifresi",
+  "ownerTagPass": "CHANGE-ME-owner-etiketi-sifresi"
 }

@@ -9,7 +9,7 @@ Terk edilmiş lunaparkta geçen birinci şahıs korku oyunu. Node.js + Socket.IO
 ```bash
 npm install
 npm start            # http://localhost:3000
-npm test             # sunucu duman testleri (49 kontrol)
+npm test             # 4 test paketi: boss çekirdeği (50), oyun çekirdeği (8), sunucu duman (71), boss sunucu (60)
 ```
 
 Node.js 18+ gerekir.
@@ -28,8 +28,21 @@ veya `server.config.example.json` dosyasını `server.config.json` olarak kopyal
 
 - Anahtar yoksa ya da 8 karakterden kısa / örnek değerse, sunucu o çalıştırma için rastgele bir anahtar üretir ve konsola yazar.
 - Anahtarı **Multiplayer menüsündeki "Sahip anahtarı"** alanına yazarak odaya girersin. Doğrulama sunucuda yapılır (zaman-sabit karşılaştırma, hatalı denemelerde geçici kilit).
+- **Staff Room şifresi (292016) yönetici yetkisi verir:** keypad'e doğru kodu giren oyuncu (sunucu kodu ve keypad'e yakınlığı doğrular) o odada yönetici olur. Sahip anahtarı (OWNER_KEY) girmek de yönetici yapar; ikisi birbirinden bağımsız çalışır. Dikkat: kodu bilen herkes yönetici olabilir, o yüzden `STAFF_CODE` ile kodu değiştirebilirsin.
 
-- 
+Diğer ayarlar (ortam değişkeni ya da config): `PORT`, `STAFF_CODE`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `BANS_FILE` (varsayılan `data/bans.json`).
+
+## İki tarayıcıyla test
+
+1. `OWNER_KEY=deneme-anahtari-123 npm start`
+2. Tarayıcı A: `http://localhost:3000` → **MULTIPLAYER** → isim yaz, **Sahip anahtarı** alanına `deneme-anahtari-123` → **ODA KUR**. 5 harfli oda kodunu not al.
+3. Tarayıcı B (gizli pencere): isim yaz, anahtarı **boş bırak**, oda kodunu gir → **KATIL**.
+4. A'da lobide B'yi gör, sohbeti dene, **BAŞLAT** (sadece host).
+5. Oyunda birbirinizin avatarını görün. B kapanınca avatarı kaybolur.
+6. Staff Room: A veya B, hut'un arkasındaki odanın dış keypad'ine `292016` girer → yönetici olur, içeri girer, çekiçleri alır. (Sahip anahtarı şart değil.)
+7. A bir çekiç seçip (1/2/3) B'ye bakıp **VUR** (veya sol tık) yapar. Kick: B odadan atılır, kodla tekrar girebilir. Ban: B kalıcı yasaklanır (sunucu yeniden başlasa da). Şifreyi girmemiş oyuncu çekiç alamaz.
+
+Ban listesini sıfırlamak için `data/bans.json` dosyasını sil.
 
 ## Kontroller
 
@@ -43,7 +56,8 @@ veya `server.config.example.json` dosyasını `server.config.json` olarak kopyal
 | Enter | Sohbet |
 | **Sadece yönetici:** G / N / I | Fly / Noclip / Invincible |
 | **Sadece yönetici:** 7 / 8 / 9 | STAFF / DEVELOPER / OWNER etiketi aç-kapa |
-| 1 / 2 / 3 / 0 | Kick / Ban / Jumpscare çekici; 0 = elindeki çekici Personel Odası'ndaki yerine geri koyar |
+| J / K / L / 0 | Yönetici çekicleri: Kick / Ban / Jumpscare; 0 = elindeki çekici Personel Odası'ndaki yerine geri koyar |
+| E (Teknoloji Ağacı'nda) | Silah satın al / kuşan / bırak. Sayı tuşuyla silah seçme YOK; silahlar yalnızca teknoloji ağacından (kulübe yanı + arenada sol ve sağ) |
 
 **Mobil:** sol yarıda kayan joystick, sağ yarıda bakış alanı; ekranda E, FENER, KOŞ, ÇÖM, NOT, VUR, ▲▼ (fly yukarı/aşağı), SOHBET ve ☰ düğmeleri.
 
@@ -85,18 +99,34 @@ Bir VPS'te `npm start`'ı bir süreç yöneticisiyle çalıştır ve önüne HTT
 - Tek oyuncu modunda Staff Room anahtarlarını/bilgisayarı kullanan yerel oyuncu yönetici olur (çevrimiçi ban/kick yoktur, sahte oyuncu yok).
 - Çoklu oyuncu modunda kayıt (save) devre dışıdır.
 - Staff Room, fly/noclip/invincible, çekiçler ve joystick önceki dosyada yoktu; sıfırdan eklendi.
-- Test edildi: sunucu duman testleri (49), iki mobil tarayıcıyla uçtan uca, yeniden bağlanma, invincible (açık/kapalı kontrol). İnternet üzerinden gerçek ortamda **denenmedi**.
+- **İNTERNET (P2P) modu gerçek internette denenmedi**: yalnızca aynı bilgisayarda iki tarayıcı + yerel eşleştirme sunucusuyla (gerçek WebRTC) test edildi. Gerçek ağda (NAT/mobil veri) bağlantı, herkese açık PeerJS sunucusunun (0.peerjs.com) ve TURN yedeğinin ayakta olmasına bağlıdır; sunucu kapalıysa "Eşleştirme sunucusuna ulaşılamadı" görürsün. Bu durumda `render.yaml`/`online.bat` yolu kullanılabilir.
+- P2P'de HOST ve misafirler birbirinin IP adresini ağ katmanında görebilir (WebRTC'nin doğası). Ban yalnızca clientId'ye bağlıdır (IP yok), yeni bir clientId ile aşılabilir. HOST sekmesini arka plana alsa da oyun döngüsü Worker ile sürer, ancak bilgisayar uyursa oda kopar.
+- Test edildi: sunucu duman testleri, iki mobil tarayıcıyla uçtan uca, yeniden bağlanma, invincible (açık/kapalı kontrol). İnternet üzerinden gerçek ortamda **denenmedi**.
 
-## İnternetten oynamak (aynı Wi-Fi gerekmez)
+## İnternetten oynamak — Node.js'siz (oyunun içinden, oda koduyla)
 
-Oyun zaten oda kodlu çalışıyor (Among Us gibi: biri oda kurar, kodu paylaşır). Bunun için sunucunun internette sürekli açık olması gerekir:
+Menüde **MULTIPLAYER → İNTERNET (kodla)** modu var (dosya olarak açılınca varsayılan). Kurulum, Node.js, aynı Wi-Fi, link/dosya gönderme gerekmez:
 
-1. Projeyi bir GitHub deposuna yükle (`node_modules` hariç).
-2. render.com'da hesap aç → **New > Blueprint** → depoyu seç (`render.yaml` hazır).
-3. Panelde `OWNER_KEY` ve `UNBAN_CODE` ortam değişkenlerini kendin gir (şifreleri depoya yazma).
-4. Çıkan `https://....onrender.com` adresini arkadaşlarına gönder; telefonda da açılır.
+1. Herkes oyunu açar (`dist/NOBETCI.html` tek dosyası yeterli; çift tıkla).
+2. Biri **CREATE ROOM** der → 5 harfli oda kodu çıkar (o kişi HOST, otomatik oyun sahibidir).
+3. Diğerleri **JOIN ROOM** + kod. Farklı internetten bile girer (WebRTC; bağlantıyı kurmak için herkese açık PeerJS eşleştirme sunucusu kullanılır, oyun verisi oyuncular arasında akar).
 
-Notlar: ücretsiz planda sunucu boşta uyur (ilk açılış ~1 dk sürer) ve ban dosyası yeniden başlatmada silinebilir. Docker kullanan başka bir hosting için `Dockerfile` da hazır.
-Hızlı alternatif: kendi PC'nde `npm start`, ardından `cloudflared tunnel --url http://localhost:3000` ile geçici internet adresi al.
+Önemli: HOST'un sekmesi açık kalmalı (kapanırsa oda kapanır, misafirler "ODA KAPANDI" görür). Oyun mantığını (hasar, altın, boss, ban) HOST'un tarayıcısı yürütür; HOST'un hızlı bir internetle oynaması önerilir. Güvenlik notu: bu modda sunucu kodları (Staff Room şifresi vb.) dosyanın içindedir; arkadaşların güvendiğin kişiler olmalı.
+Ban listesi HOST'un tarayıcısında saklanır; ENGELLENDİN ekranındaki ban açma şifresi bu modda da çalışır.
+Eski Node.js sunucusu (`npm start`, `online.bat`) hâlâ çalışır; menüden **SUNUCU** seçilir.
 
-**En kolay yol:** `online.bat` (Windows) / `online.sh` (Mac/Linux) dosyasına çift tıkla. Sunucuyu açar ve internete açık bir adres verir; adresi arkadaşlarına gönder, oda kodunla katılsınlar. Ek program kurmak gerekmez (Windows 10/11'deki `ssh` kullanılır). Pencere açık kaldığı sürece oyun açıktır.
+`public/index.html` ve `dist/NOBETCI.html` TEK DOSYADIR (her şey içinde gömülü), zipten ya da çıkarmadan açılsa da çalışır. Kaynağı düzenlemek için `src/index.template.html`, `public/boss-core.js`, `game-server.js`, `p2p.js`, `multiplayer.js` dosyalarını değiştir, sonra `npm run build` (public/index.html'i üzerine yazar).
+
+### Render.com ile 7/24 sunucu (isteğe bağlı)
+`render.yaml` hazırdır (GitHub'a yükle → Render'da Blueprint). `OWNER_KEY` ve `UNBAN_CODE` ortam değişkenlerini panelde kendin gir.
+
+## Teknoloji Ağacı ve Boss (özet)
+- Eşyalar: SAPAN (ücretsiz, tek bedava eşya), ÇUBUK 100, ÇEKİÇ 400, KILIÇ 900, SİLAH 1800 altın. **Bir kez alınır, kalıcıdır, tüketilmez**; altın yalnızca ilk alırken harcanır.
+- Ağaçlar: güvenlik kulübesinin batısı + boss arenasında sol ve sağ. Satın alma/kuşanma yalnızca ağacın yanında (sunucu mesafeyi doğrular); kuşanılmayan silahla saldırı sunucuda reddedilir.
+- Boss (dev palyaço) hareket etmez; yumruk (kol kalkar, TAM 1 sn bekler, sonra tek vuruş) ve ses dalgası (uyarı, yönlü, sütunlara takılır) saldırıları vardır. Her 30 dakikada otomatik başlar; Staff Room düğmesi ve yönetici bilgisayarından da başlatılır.
+- Ban açma şifresi `UNBAN_CODE` (varsayılan kodda tanımlıdır; yayınlamadan önce değiştir).
+
+## Grafik (Ayarlar > Grafik kalitesi)
+- **Yüksek:** piksel başına PBR ışıklandırma, ıslak asfalt yansımaları, duvar/zemin kir ve su izi dokusu (üç yönlü, UV gerektirmez), yumuşak gölgeler, el feneri ışık huzmesi, lamba haleleri, ay hâlesi, havada toz, sinematik ton eğrisi (ACES), renk derecelendirme, vinyet ve film greni.
+- **Düşük:** köşe başına ışıklandırma, hafif vinyet; telefonlarda varsayılan budur. Yüksek, gerçek telefonda **denenmedi** (yalnızca masaüstü Chromium'da yazılım çizimiyle).
+- Canavar/karakter modelleri hâlâ basit geometriden oluşur; yüzey ve ışık iyileştirildi, model kalitesi değişmedi.

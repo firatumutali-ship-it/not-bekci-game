@@ -76,7 +76,7 @@ function post(url, body, headers) {
   r = await call(adm, 'shop:buy', { item: 'stick' }); assert(!r.ok); ok('altın yokken ÇUBUK (100) bile bedava değil');
   for (const it of ['sword', 'hammer']) { r = await call(adm, 'shop:buy', { item: it }); assert(!r.ok); } ok('KILIÇ ve ÇEKİÇ de ücretsiz değil');
   r = await call(adm, 'shop:buy', { item: 'bogus' }); assert(!r.ok); ok('geçersiz eşya reddedildi');
-  r = await call(adm, 'shop:buy', { item: 'sling' }); assert(r.ok && r.gold === 0 && r.weapons.includes('sling') && r.weapons.length === 1); ok('SAPAN 0 altına açıldı (başka hiçbir eşya açılmadı)');
+  r = await call(adm, 'shop:buy', { item: 'sling' }); assert(r.ok && r.gold === 0 && r.weapons.includes('sling') && r.weapons.length === 1 && r.wield === 'sling'); ok('SAPAN 0 altına açıldı ve kuşanıldı (başka hiçbir eşya açılmadı)');
   r = await call(adm, 'shop:buy', { item: 'sling' }); assert(!r.ok && /zaten/.test(r.error)); ok('sapan ikinci kez alınamaz');
   r = await call(pl, 'admin:gold', { target: 'self', amount: 100 }); assert(!r.ok); ok('yönetici olmayan altın veremez (sunucu doğruladı)');
   r = await call(adm, 'admin:gold', { target: 'self', amount: 100 }); assert(!r.ok && /Personel/.test(r.error)); ok('Personel Odası dışında altın verilemez');
@@ -91,7 +91,8 @@ function post(url, body, headers) {
   r = await call(adm, 'admin:gold', { target: pl.id, amount: 50 }); assert(r.ok && r.count === 1); ok('tek oyuncuya altın verme çalışıyor');
   r = await call(adm, 'admin:gold', { target: 'nobody', amount: 5 }); assert(!r.ok);
   await fly(adm, adminSpot, { x: C.TECH.x + 1, z: C.TECH.z }); adminSpot = { x: C.TECH.x + 1, z: C.TECH.z };
-  r = await call(adm, 'shop:buy', { item: 'gun' }); assert(r.ok && r.gold === 200 && r.weapons.includes('gun')); ok('altınla SİLAH alındı (2000−1800 = 200)');
+  r = await call(adm, 'shop:buy', { item: 'gun' }); assert(r.ok && r.gold === 200 && r.weapons.includes('gun') && r.wield === 'gun' && r.weapons.includes('sling')); ok('altınla SİLAH alındı (2000−1800 = 200); sapan da hâlâ sende (eşyalar kalıcı)');
+  r = await call(adm, 'shop:buy', { item: 'gun' }); assert(!r.ok && /zaten/.test(r.error) && (await call(adm, 'boss:info', {})).gold === 200); ok('aynı eşya tekrar alınamaz, altın düşmedi');
   r = await call(adm, 'boss:info', {}); assert(r.ok && !r.active && r.nextIn > 1000 && r.gold === 200); ok('boss:info: sonraki otomatik boss ~30 dk sonra');
 
   console.log('H) Boss oturumu: zafer');
@@ -106,6 +107,21 @@ function post(url, body, headers) {
   const st0 = await waitFor(adm, 'boss:state', st => st.ph === 'fight'); const bx0 = st0.b.x, bz0 = st0.b.z;
   assert(bx0 === C.ARENA.bossX && bz0 === C.ARENA.bossZ); ok('boss arenada sabit konumda doğdu');
   r = await call(pl, 'weapon:attack', { w: 'sling', yaw: 0, pitch: 0 }); assert(!r.ok); ok('savaşta olmayan oyuncu saldıramaz');
+  console.log('H2) Arena teknoloji ağaçları (sol/sağ)');
+  let apos = { x: tArena.x, z: tArena.z };
+  r = await call(adm, 'weapon:attack', { w: 'sling', yaw: 0, pitch: 0 }); assert(!r.ok && /elinde değil/.test(r.error)); ok('kuşanılmayan silahla saldırı reddedildi (silah elde olmalı)');
+  r = await call(adm, 'weapon:equip', { item: 'sling' }); assert(!r.ok && /yaklaş/.test(r.error)); ok('arenada ağaçtan uzakta silah değiştirilemez (sunucu mesafe doğruladı)');
+  r = await call(adm, 'shop:buy', { item: 'stick' }); assert(!r.ok && /yaklaş/.test(r.error)); ok('arenada ağaçtan uzakta satın alma reddedildi');
+  assert(C.ARENA_TECH.length === 2 && C.ARENA_TECH[0].x < C.ARENA.cx && C.ARENA_TECH[1].x > C.ARENA.cx); ok('arenada bir SOL bir SAĞ teknoloji ağacı var');
+  const kL = C.ARENA_TECH[0], kR = C.ARENA_TECH[1];
+  await fly(adm, apos, { x: kL.x + 1.5, z: kL.z }); apos = { x: kL.x + 1.5, z: kL.z };
+  r = await call(adm, 'shop:buy', { item: 'stick' }); assert(r.ok && r.gold === 100 && r.wield === 'stick'); ok('SOL ağaçtan ÇUBUK alındı (200−100) ve kuşanıldı');
+  r = await call(adm, 'weapon:equip', { item: 'hammer' }); assert(!r.ok && /sahip/.test(r.error)); ok('sahip olunmayan silah kuşanılamaz');
+  r = await call(adm, 'weapon:equip', { item: 'sling' }); assert(r.ok && r.wield === 'sling' && r.weapons.length === 3 && r.gold === 100); ok('SOL ağaçta SAPAN kuşanıldı; altın harcanmadı, eşyalar duruyor');
+  r = await call(adm, 'weapon:equip', { item: null }); assert(r.ok && r.wield === null); r = await call(adm, 'weapon:attack', { w: 'sling', yaw: 0, pitch: 0 }); assert(!r.ok); ok('silah bırakılınca saldırı yok');
+  await fly(adm, apos, { x: kR.x - 1.5, z: kR.z }); apos = { x: kR.x - 1.5, z: kR.z };
+  r = await call(adm, 'weapon:equip', { item: 'sling' }); assert(r.ok && r.wield === 'sling'); ok('SAĞ ağaçta da SAPAN kuşanıldı');
+  await fly(adm, apos, { x: tArena.x, z: tArena.z });
   await sleep(300);
   r = await call(adm, 'weapon:attack', { w: 'hammer', yaw: 0, pitch: 0 }); assert(!r.ok && /sahip/.test(r.error)); ok('sahip olunmayan silahla saldırı reddedildi');
   r = await call(adm, 'weapon:attack', { w: 'sling', yaw: 0, pitch: 0 }); assert(r.ok === true || r.error === 'cd'); 
@@ -114,6 +130,7 @@ function post(url, body, headers) {
   r = await call(adm, 'weapon:attack', { w: 'sling', yaw: 0, pitch: 0 }); assert(!r.ok && r.error === 'cd'); ok('sapan bekleme süresi (cooldown) sunucuda uygulanıyor');
   await sleep(800); r = await call(adm, 'weapon:attack', { w: 'sling', yaw: Math.PI, pitch: 0 }); assert(r.ok && !r.hit); ok('arkaya bakarak ateş: ıska');
   const goldBefore = (await call(adm, 'boss:info', {})).gold;
+  await fly(adm, { x: tArena.x, z: tArena.z }, { x: kL.x + 1.5, z: kL.z }); r = await call(adm, 'weapon:equip', { item: 'gun' }); assert(r.ok && r.wield === 'gun'); await fly(adm, { x: kL.x + 1.5, z: kL.z }, { x: tArena.x, z: tArena.z });
   room.boss.boss.hp = 12; await sleep(800);
   r = await call(adm, 'weapon:attack', { w: 'gun', yaw: 0, pitch: 0 }); assert(r.ok && r.hit); ok('son vuruş boss\'a isabet etti');
   const endWin = await waitFor(adm, 'boss:end', null, 3000); assert.strictEqual(endWin.result, 'win'); ok('boss öldü → zafer bildirimi');
