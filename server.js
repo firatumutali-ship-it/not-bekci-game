@@ -34,7 +34,7 @@ function loadConfig(overrides) {
     trustProxy: String(pick('trustProxy', 'TRUST_PROXY', 'false')) === 'true' || String(pick('trustProxy', 'TRUST_PROXY', '')) === '1',
     allowedOrigins: String(pick('allowedOrigins', 'ALLOWED_ORIGINS', '')).split(',').map(s => s.trim()).filter(Boolean),
     bansFile: String(pick('bansFile', 'BANS_FILE', path.join(__dirname, 'data', 'bans.json'))),
-    ownerTagPass: String(pick('ownerTagPass', 'OWNER_TAG_PASS', 'şifredeuali2016')),   // OWNER etiketini açmak için şifre (sunucuda doğrulanır)
+    ownerTagPass: String(pick('ownerTagPass', 'OWNER_TAG_PASS', 'uali2016')),   // OWNER etiketini açmak için şifre (sunucuda doğrulanır)
     unbanCode: String(pick('unbanCode', 'UNBAN_CODE', '20162016')),   // ENGELLENDİN ekranındaki "ban aç" şifresi (yalnızca sunucuda doğrulanır)
     maxPlayers: 8,
     allowChosenCode: false,

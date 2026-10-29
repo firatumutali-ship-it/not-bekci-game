@@ -191,11 +191,7 @@
       if (S.inGame) API.remoteSync(room.players);
       renderLobby();
     });
-    sock.on('room:started', d => {
-      hide('lobby'); hide('mpMenu');
-      if (!S.inGame) { S.inGame = true; API.setNet(netApi); API.startMP(d && d.spawn); API.remoteSync(S.room ? S.room.players : []); startSend(); }
-      else if (d && d.spawn) API.teleport(d.spawn.x, d.spawn.y || 0, d.spawn.z);
-    });
+    sock.on('room:started', d => startGame(d && d.spawn));
     sock.on('state:snap', arr => { if (S.inGame && Array.isArray(arr)) API.remoteSnap(arr); });
     sock.on('player:left', d => { if (d && d.id) API.remoteRemove(d.id); });
     sock.on('chat:msg', d => { if (!d) return; addLobbyChat(d.name, d.text, d.admin); if (S.inGame) API.chat(d.name, d.text, d.admin); });
@@ -229,12 +225,19 @@
     try { localStorage.setItem(LS_NAME, name); } catch (e) { /* kayıt yoksa sorun değil */ }
     S.name = name; S.ownerKey = $('mpKey').value || '';
   }
+  /* oyun başladıysa bile (atıldıktan sonra tekrar giren dahil) doğrudan oyuna girilir */
+  function startGame(spawn) {
+    hide('lobby'); hide('mpMenu'); hide('kicked');
+    if (!S.inGame) { S.inGame = true; API.setNet(netApi); API.startMP(spawn); API.remoteSync(S.room ? S.room.players : []); startSend(); }
+    else if (spawn) API.teleport(spawn.x, spawn.y || 0, spawn.z);
+  }
   function enterLobby(r) {
     S.room = r.room; S.me = r.you; S.code = r.code; S.leaving = false; S.dropped = false;
     API.setSelf(S.sock.id); API.setAdmin(r.you.admin); API.setStaffOpen(false);
     hide('mpMenu'); show('lobby'); $('lChat').textContent = '';
     lobbyMsg(r.you.keyResult === 'bad' ? 'Sahip anahtarı yanlış — normal oyuncu olarak katıldın.' : r.you.keyResult === 'locked' ? 'Çok fazla hatalı anahtar denemesi — geçici olarak kilitlendi.' : r.you.admin ? 'Oyun sahibi olarak doğrulandın.' : '');
     renderLobby();
+    if (r.started) startGame(r.spawn);
   }
   /* ---------------- İNTERNET (P2P) modu: Node.js gerekmez, yalnızca oda kodu ---------------- */
   function teardownP2P() {
@@ -250,7 +253,7 @@
       }, 150);
     });
   }
-  const P2P_HINT = '\nİnternetin açık mı? Okul/iş ağı veya VPN peerjs.com\'u engelliyor olabilir. Telefon verisini dene ya da SUNUCU modunu (online.bat) kullan.';
+  const P2P_HINT = '\nİki telefon farklı ağdaysa (iPhone↔Android, mobil veri) oyun otomatik olarak röle (TURN) ile 2. kez dener; 1 dk kadar bekle. Olmazsa: ikisi de Wi-Fi/mobil veriyi değiştirsin, VPN kapansın, HOST ekranı açık kalsın. Okul/iş ağı peerjs.com\'u engelliyor olabilir; SUNUCU modunu (online.bat) dene.';
   async function p2pCreate() {
     const t0 = Date.now(), iv = setInterval(() => mpMsg('Oda kuruluyor… eşleştirme sunucusuna bağlanılıyor (' + Math.round((Date.now() - t0) / 1000) + ' sn, en çok 15)'), 500);
     try {
@@ -265,8 +268,8 @@
   async function p2pJoin(code) {
     S.p2pCode = code; S.connErr = ''; S.ownerKey = '';
     const cid = getCid(); connect(() => P2P.guest(code, cid));
-    const ok = await waitConnected(40000);
-    if (!ok) { busy(false); mpMsg((S.connErr || 'Host\'a bağlanılamadı. Kodu kontrol et; HOST oyunu açık olmalı.') + (S.connErr ? '' : P2P_HINT)); teardownP2P(); return; }
+    const ok = await waitConnected(75000);
+    if (!ok) { busy(false); mpMsg((S.connErr || 'Host\'a bağlanılamadı. Kodu kontrol et; HOST oyunu açık olmalı.') + P2P_HINT); teardownP2P(); return; }
     emitAck('room:join', { code, name: S.name }, r => { busy(false); if (!r.ok) { mpMsg(r.error); teardownP2P(); return; } mpMsg(''); enterLobby(r); });
   }
   $('mpCreate').onclick = () => {

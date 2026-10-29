@@ -16,11 +16,18 @@
   const clone = v => { if (v === undefined) return v; try { return typeof structuredClone === 'function' ? structuredClone(v) : JSON.parse(JSON.stringify(v)); } catch (e) { return JSON.parse(JSON.stringify(v)); } };
 
   /* Eşleştirme sunucusu ayarı: varsayılan PeerJS bulutu. Test/özel için ?peer=host:port veya window.NOBETCI_PEER = {host,port,path,secure} */
-  function peerOpts() {
-    const o = { debug: 0 };
+  /* ICE: birden çok STUN + TURN (röle). Mobil operatör (CGNAT) / iPhone↔Android gibi doğrudan bağlanamayan ağlarda TURN şart.
+     PeerJS config verilince kendi varsayılanlarını bıraktığı için hepsini burada açıkça veriyoruz. */
+  const ICE = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302', 'stun:global.stun.twilio.com:3478', 'stun:stun.cloudflare.com:3478'] },
+    { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+  ];
+  function peerOpts(relay) {
+    const o = { debug: 0, config: { iceServers: ICE, iceTransportPolicy: relay ? 'relay' : 'all' } };
     let c = window.NOBETCI_PEER;
     if (!c) { try { const q = new URLSearchParams(location.search).get('peer'); if (q) { const m = /^([\w.-]+):(\d+)$/.exec(q); if (m) c = { host: m[1], port: +m[2], path: '/', secure: false }; } } catch (e) { /* ignore */ } }
-    if (c) Object.assign(o, c);
+    if (c) { const cc = c.config; Object.assign(o, c); if (!cc) o.config = o.config || { iceServers: ICE }; }
     return o;
   }
   const supported = !!(G && PeerLib && typeof RTCPeerConnection !== 'undefined');
@@ -126,9 +133,9 @@
     save: l => localStorage.setItem(LS_BANS, JSON.stringify(l))
   };
   const rndCode = () => { let c = ''; for (let i = 0; i < 5; i++) c += G.ROOM_ALPHABET[G.randomInt(G.ROOM_ALPHABET.length)]; return c; };
-  function openPeer(id) {
+  function openPeer(id, relay) {
     return new Promise((res, rej) => {
-      const p = id ? new PeerLib(id, peerOpts()) : new PeerLib(undefined, peerOpts());
+      const p = id ? new PeerLib(id, peerOpts(relay)) : new PeerLib(undefined, peerOpts(relay));
       const t = setTimeout(() => { try { p.destroy(); } catch (e) { /* ignore */ } rej(Object.assign(new Error('Eşleştirme sunucusuna (peerjs.com) 15 sn içinde bağlanılamadı.'), { type: 'timeout' })); }, 15000);
       p.on('open', () => { clearTimeout(t); res(p); });
       p.on('error', e => { clearTimeout(t); try { p.destroy(); } catch (x) { /* ignore */ } rej(e && e.type && !e.message ? Object.assign(new Error(e.type), { type: e.type }) : e); });
@@ -150,6 +157,7 @@
     const game = G.createGame({ io, CFG, bans, setInterval: (f, ms) => tickIv(f, ms), clearInterval: tickClear, bossTiming: window.NOBETCI_BOSS_TIMING });
     const H = { code, peer, io, game, CFG, bans, conns: new Set(), stopped: false, hostKey: CFG.ownerKey };
     HOST = H;
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { H.wl = l; }).catch(() => {}); } catch (e) { /* ignore */ }   // telefon HOST'ken ekran kapanıp oda düşmesin
 
     peer.on('disconnected', () => { if (H.stopped) return; let n = 0; const t = setInterval(() => { if (H.stopped || !peer.disconnected || ++n > 30) return clearInterval(t); try { peer.reconnect(); } catch (e) { /* ignore */ } }, 3000); });
     peer.on('error', e => { if (e && e.type !== 'peer-unavailable') console.warn('[p2p host]', e.type || e); });
@@ -195,6 +203,7 @@
   }
   function stopHost() {
     const H = HOST; if (!H) return; HOST = null; H.stopped = true;
+    try { H.wl && H.wl.release(); } catch (e) { /* ignore */ }
     try { H.game.close(); } catch (e) { /* ignore */ }
     for (const c of [...H.conns]) { try { if (c.open) c.send({ t: 'bye' }); } catch (e) { /* ignore */ } }   // misafirlere "oda kapandı" bildirimi
     setTimeout(() => {
@@ -222,11 +231,12 @@
       if (this.tries > 0) this._fireIo('reconnect_attempt');
       let fatal = null;
       try {
-        const peer = await openPeer(null); if (this.manual) { try { peer.destroy(); } catch (e) { /* ignore */ } return; }
+        const relay = (this.fails || 0) % 2 === 1;   // 1. deneme normal, başarısızsa 2. deneme yalnızca TURN röle (iPhone↔Android / operatör ağı)
+        const peer = await openPeer(null, relay); if (this.manual) { try { peer.destroy(); } catch (e) { /* ignore */ } return; }
         this.peer = peer;
         const conn = await new Promise((res, rej) => {
           const c = peer.connect(PREFIX + this.code, { reliable: true, serialization: 'json' });
-          const t = setTimeout(() => rej(Object.assign(new Error('timeout'), { type: 'timeout' })), 20000);
+          const t = setTimeout(() => rej(Object.assign(new Error('timeout'), { type: 'timeout' })), relay ? 30000 : 15000);
           c.on('open', () => { clearTimeout(t); res(c); });
           c.on('error', e => { clearTimeout(t); rej(e); });
           peer.on('error', e => { clearTimeout(t); rej(e); });
@@ -247,14 +257,14 @@
           conn.send({ t: 'hello', cid: this.cid, v: 1 });
         });
         if (reply.t === 'err') { fatal = new Error(reply.m || 'denied'); throw fatal; }
-        this.id = reply.id; this.connected = true; this.everConnected = true; this.tries = 0; this.failSince = 0;
+        this.id = reply.id; this.connected = true; this.everConnected = true; this.tries = 0; this.fails = 0; this.failSince = 0;
         this.hb = tickIv(() => {
           this._tx({ t: 'p' });
           if (performance.now() - this.lastRx > 20000) { try { this.conn && this.conn.close(); } catch (e) { /* ignore */ } this._dropped('ping timeout'); }
         }, 3000);
         this._fire('connect');
       } catch (e) {
-        this._cleanup();
+        this._cleanup(); this.fails = (this.fails || 0) + 1;
         if (this.manual) { this.busy = false; return; }
         const notFound = e && e.type === 'peer-unavailable';
         if (fatal || (notFound && !this.everConnected)) { this.busy = false; this._fire('connect_error', fatal || new Error('not-found')); return; }   // yeniden deneme yok
@@ -270,7 +280,7 @@
     _dropped(reason) {
       if (this.manual || !this.connected) return;
       this.connected = false; if (this.hb) { tickClear(this.hb); this.hb = null; }
-      this.acks.clear(); this._fire('disconnect', reason); this._cleanup();
+      this.acks.clear(); this.fails = 0; this._fire('disconnect', reason); this._cleanup();
       this.busy = false; if (!this.failSince) this.failSince = Date.now(); this.tries = 1; setTimeout(() => this._connect(), 700);
     }
     connect() { if (!this.connected && !this.busy && !this.manual) this._connect(); }

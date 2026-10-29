@@ -1924,7 +1924,7 @@ function updBossVisual(dt){
     R.armL.rotation.x=-1.0*f; R.armR.rotation.x=-1.0*f; R.armL.rotation.z=-0.5*f; R.armR.rotation.z=0.5*f; R.elbowL.rotation.x=-0.8*f; R.elbowR.rotation.x=-0.8*f; R.g.rotation.z=Math.sin(now*22)*0.02*f; glow=0.4*f; gcol=0xb030ff; }
   else if(st==='tired'){ const k=easeO(t/0.5); crouch(0.35*k); R.torso.rotation.x=0.75*k; R.armL.rotation.x=-0.55*k; R.armR.rotation.x=-0.55*k; R.elbowL.rotation.x=-0.3*k; R.elbowR.rotation.x=-0.3*k; R.head.rotation.x=-0.15*k; R.jaw.rotation.x=(0.5+0.2*Math.sin(now*7))*k; R.torso.scale.set(1,1+0.04*Math.sin(now*7)*k,1); sc*=1+Math.sin(now*5)*0.008; glow=0.25; gcol=0x40a0ff; }
   else if(st==='dead'){ const u=Math.min(1,t/1.6); crouch(0.8*Math.min(1,t/0.5)); const dy=R.g.position.y; R.g.rotation.x=-1.5*easeO(u); R.g.position.y=dy-0.7*u; R.armL.rotation.z=-0.6*u; R.armR.rotation.z=0.6*u; R.head.rotation.x=-0.4*u; R.jaw.rotation.x=0.9; }
-  R.g.rotation.y=yaw; R.g.scale.setScalar(sc);
+  secondary(R,dt); R.g.rotation.y=yaw; R.g.scale.setScalar(sc);
   BOSSC.flash=Math.max(0,BOSSC.flash-dt*3.2); if(BOSSC.flash>0){ gcol=0xff2020; glow=Math.max(glow,BOSSC.flash*0.9); }
   bossGlow(gcol,glow);
   /* uyarı alanı: yumruk (kırmızı taralı) */
@@ -1946,7 +1946,7 @@ const sumMat=new THREE.MeshBasicMaterial({color:0xb030ff,transparent:true,opacit
 const sumMarks=[]; for(let i=0;i<6;i++){ const g=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(0.8,1.15,28),sumMat.clone()); ring.rotation.x=-Math.PI/2; ring.position.y=0.1; g.add(ring);
   const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,6,16,1,true),sumMat.clone()); pil.position.y=3; g.add(pil); g.visible=false; scene.add(g); sumMarks.push({g,ring,pil}); }
 function newMini(id){ let e=MINI_POOL.pop();
-  if(!e){ const rig=buildClown({mini:true}); resetPose(rig); rig.g.scale.setScalar(MINI_SC); scene.add(rig.g);
+  if(!e){ const rig=buildClown({mini:true}); resetPose(rig); rig.g.scale.set(MINI_SC*(0.94+Math.random()*0.12),MINI_SC*(0.94+Math.random()*0.12),MINI_SC*(0.94+Math.random()*0.12)); rig.head.scale.setScalar(1.0+Math.random()*0.18); scene.add(rig.g);
     const ring=new THREE.Mesh(new THREE.CircleGeometry(2.0,28),miniRingMat.clone()); ring.rotation.x=-Math.PI/2; ring.position.y=0.07; ring.visible=false; scene.add(ring); e={rig,ring}; }
   Object.assign(e,{id,x:0,z:0,yaw:0,st:'rise',lt:0,ph:0,amp:0,dead:false,dT:0,init:false}); e.rig.g.visible=true; return e; }
 function updMinis(dt){
@@ -1967,7 +1967,7 @@ function updMinis(dt){
     else if(st==='wind'){ const k=easeO(lt/0.3),w=Math.min(1,lt/Mn.windup); gaitPose(r,e.ph,0,0,false); r.armR.rotation.x=-2.8*k; r.armR.rotation.z=0.2*k; r.elbowR.rotation.x=-0.7*k; r.armL.rotation.x=-0.5*k; r.elbowL.rotation.x=-1.0*k; r.torso.rotation.y=0.45*k; lean=-0.1*k; r.jaw.rotation.x=0.5; curlHand(r.handR,0.9*k); ring=0.25+0.4*w+0.1*Math.sin(now*24); }
     else if(st==='strike'){ const u=Math.min(1,lt/Mn.strike),k=easeO(u/0.5); r.armR.rotation.x=-2.8+2.5*k; r.armR.rotation.z=0.2+0.4*k; r.elbowR.rotation.x=-0.7*(1-k)-0.1; r.torso.rotation.y=0.45-0.9*k; lean=0.05+0.4*k; r.jaw.rotation.x=0.6; ox=Math.sin(e.yaw)*0.3*k; oz=Math.cos(e.yaw)*0.3*k; curlHand(r.handR,0.95); ring=0.7*(1-u); }
     else { const a=Math.max(0.35,e.amp); gaitPose(r,e.ph,a,1,false); lean=0.12+0.28*a; r.armL.rotation.x-=0.9*a*(0.6+0.4*Math.sin(now*11)); r.armR.rotation.x-=0.9*a*(0.6+0.4*Math.cos(now*11)); r.jaw.rotation.x=0.3+0.25*Math.sin(now*26); r.head.rotation.z=Math.sin(now*14+e.id)*0.08; y=Math.abs(Math.cos(e.ph))*0.05*a; }
-    r.torso.rotation.x=lean; r.g.position.set(e.x+ox,y,e.z+oz);
+    r.torso.rotation.x=lean; secondary(r,dt); r.g.position.set(e.x+ox,y,e.z+oz);
     e.ring.visible=ring>0.01; if(e.ring.visible){ e.ring.position.x=e.x; e.ring.position.z=e.z; e.ring.material.opacity=ring; } }
   /* doğma işaretleri (mor halka + ışık sütunu): 2 sn uyarı sırasında, mini daha çıkmadan */
   const sp=sn&&sn.b.st==='summonWind'&&sn.sp?sn.sp:null;
@@ -2115,9 +2115,15 @@ function mkBuilder(){ const mats={}; return {M:c=>mats[c]||(mats[c]=new THREE.Me
 /* ---- organik gövde yardımcıları: yumrulu elipsoitler, sivrilen uzuvlar, eklemli kol/bacak, çeneli kafa ---- */
 function lump(geo,amp,seed){ const p=geo.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
     const n=Math.sin(x*9.1+seed)*Math.sin(y*7.3+seed*1.7)*Math.sin(z*8.3+seed*0.6)+0.5*Math.sin((x+z)*17+y*5+seed); const k=1+n*amp; p.setXYZ(i,x*k,y*(1+n*amp*0.4),z*k); }
+  /* deri/kumaş alacası: düşük frekanslı leke + ince damar/benek, tepe noktası renginde (ışıkla çarpılır) */
+  const col=new Float32Array(p.count*3); for(let i=0;i<p.count;i++){ const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    const blot=Math.sin(x*3.1+seed*2.3)*Math.sin(y*2.7+seed)*Math.sin(z*3.3+seed*1.1), fine=Math.sin(x*41+y*37+z*29+seed*5)*0.5+0.5, vein=Math.pow(Math.max(0,Math.sin((x*13+y*9+z*11+seed)*2.0)),24);
+    let v=0.9+0.1*fine-0.14*Math.max(0,blot)-0.16*vein; const r=v*(1+0.05*blot), b=v*(1-0.07*blot); col[i*3]=Math.min(1,r); col[i*3+1]=v; col[i*3+2]=Math.min(1,b); }
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   geo.computeVertexNormals(); return geo; }
+function mkOrgBuilder(){ const mats={}; return {M:c=>mats[c]||(mats[c]=new THREE.MeshLambertMaterial({color:c,vertexColors:true})),E:c=>new THREE.MeshBasicMaterial({color:c})}; }
 function orgKit(M){
-  const mesh=(geo,mat,par,x,y,z)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x||0,y||0,z||0); m.castShadow=true; par.add(m); return m; };
+  const mesh=(geo,mat,par,x,y,z)=>{ if(!geo.attributes.color){ const n=geo.attributes.position.count,a=new Float32Array(n*3).fill(1); geo.setAttribute('color',new THREE.BufferAttribute(a,3)); } const m=new THREE.Mesh(geo,mat); m.position.set(x||0,y||0,z||0); m.castShadow=true; par.add(m); return m; };
   const ell=(par,mat,rx,ry,rz,x,y,z,amp,seed,seg)=>{ const g=new THREE.SphereGeometry(1,seg||12,seg?Math.max(6,seg-2):9); g.scale(rx,ry,rz); if(amp)lump(g,amp,seed||1); return mesh(g,mat,par,x,y,z); };
   const seg=(par,mat,r0,r1,len,amp,seed)=>{ const g=new THREE.CylinderGeometry(r0,r1,len,10,2); g.translate(0,-len/2,0); lump(g,amp||0.05,seed||2); const m=mesh(g,mat,par,0,0,0); mesh(new THREE.SphereGeometry(r0*1.04,10,8),mat,par,0,0,0); return m; };
   const cone=(par,mat,r,h,x,y,z,rx,rz)=>{ const m=mesh(new THREE.ConeGeometry(r,h,6),mat,par,x,y,z); m.rotation.x=rx||0; m.rotation.z=rz||0; return m; };
@@ -2131,7 +2137,7 @@ function orgKit(M){
 function curlHand(h,k){ if(!h||!h.fing)return; for(let i=0;i<h.fing.length;i++){ const f=h.fing[i],v=k*(1+0.12*(i%2)); f[0].rotation.x=-0.15-0.95*v; f[1].rotation.x=-0.2-1.15*v; } }
 function zOnEll(x,y,c,rx,ry,rz){ return c.z+rz*Math.sqrt(Math.max(0.02,1-(x-c.x)*(x-c.x)/(rx*rx)-(y-c.y)*(y-c.y)/(ry*ry))); }
 
-function buildClown(o){ o=o||{}; const g=new THREE.Group(),{M,E}=mkBuilder(),K=orgKit(M),mini=!!o.mini,boss=!!o.boss;
+function buildClown(o){ o=o||{}; const g=new THREE.Group(),{M,E}=mkOrgBuilder(),K=orgKit(M),mini=!!o.mini,boss=!!o.boss;
   const suit=M(mini?0x1d3d86:0x5a1020),suit2=M(mini?0xe6c43a:0xd8d0c0),skin=M(mini?0xd2c9b4:0xc9c2b2),skin2=M(mini?0xb7ae9a:0xaaa292),blk=M(0x0a0a0a),redM=M(0xb01418),glove=M(0xe9e4d8),hairC=M(mini?0x2a9d4a:0xd03020),teethM=M(0xe8e2c8),dark=M(0x120505),shoe=M(mini?0xe6c43a:0xb02020);
   const T=new THREE.Group(); T.position.set(0,1.25,0); g.add(T);
   /* gövde: pelvis + sarkık göbek + dar omuzlar + buruşuk yaka */
@@ -2142,10 +2148,10 @@ function buildClown(o){ o=o||{}; const g=new THREE.Group(),{M,E}=mkBuilder(),K=o
   if(boss)for(let i=0;i<3;i++){ const r=K.ell(T,suit2,0.36-i*0.05,0.04,0.36-i*0.05,0,1.1+i*0.05,0,0.14,i+30,12); r.rotation.x=(i-1)*0.06; }
   K.seg(T,skin2,0.085,0.075,0.17,0.04,6).position.set(0,1.27,0);
   /* kafa */
-  const head=new THREE.Group(); head.position.set(0,1.38,0.02); T.add(head);
+  const lids=[]; const head=new THREE.Group(); head.position.set(0,1.38,0.02); T.add(head);
   K.ell(head,skin,0.26,0.27,0.27,0,0.07,0,0.035,7,14); K.ell(head,skin,0.2,0.1,0.14,0,-0.06,0.12,0.03,8,8);
   for(const s of[-1,1]){ K.ell(head,skin2,0.1,0.034,0.08,s*0.1,0.185,0.2,0.05,s+9,8).rotation.z=-s*0.28; K.ell(head,dark,0.075,0.062,0.05,s*0.1,0.1,0.22,0.1,s+12,8);
-    const ey=K.mesh(new THREE.SphereGeometry(0.04,8,6),E(0xffe040),head,s*0.1,0.1,0.245); K.ell(head,redM,0.022,0.1,0.01,s*0.1,0.0,0.255,0.05,s+14,6); K.ell(head,skin2,0.04,0.075,0.03,s*0.265,0.05,-0.01,0.06,s+15,6); }
+    const ey=K.mesh(new THREE.SphereGeometry(0.04,8,6),E(0xffe040),head,s*0.1,0.1,0.245); const lid=K.ell(head,skin,0.062,0.058,0.05,s*0.1,0.1,0.236,0.03,s+60,8); lid.scale.y=0.04; lids.push(lid); K.ell(head,redM,0.022,0.1,0.01,s*0.1,0.0,0.255,0.05,s+14,6); K.ell(head,skin2,0.04,0.075,0.03,s*0.265,0.05,-0.01,0.06,s+15,6); }
   K.ell(head,redM,0.07,0.07,0.07,0,0.01,0.27,0.04,16,8);
   /* çeneli ağız: kırmızı gülümseme boyası çenede, üst/alt dişler */
   const jaw=new THREE.Group(); jaw.position.set(0,-0.1,-0.05); head.add(jaw);
@@ -2156,8 +2162,9 @@ function buildClown(o){ o=o||{}; const g=new THREE.Group(),{M,E}=mkBuilder(),K=o
   const tn=boss?9:7; for(let i=0;i<tn;i++){ const x=(i/(tn-1)-0.5)*0.2,y=JC.y+0.095; K.cone(jaw,teethM,boss?0.02:0.016,boss?0.085:0.06,x,y+0.02,zOnEll(x,y,JC,0.2,0.12,0.2)-0.012,0,0); }
   const UC={x:0,y:0.07,z:0}; for(let i=0;i<tn;i++){ const x=(i/(tn-1)-0.5)*0.22,y=-0.075; K.cone(head,teethM,boss?0.02:0.016,boss?0.085:0.06,x,y-0.02,zOnEll(x,y,UC,0.26,0.27,0.27)-0.012,Math.PI,0); }
   /* saç tutamları + koni şapka */
-  for(const s of[-1,1])for(let i=0;i<4;i++)K.ell(head,hairC,0.09-i*0.012,0.08-i*0.01,0.085,s*(0.25+i*0.03),0.12+i*0.05,-0.03-i*0.02,0.25,s*10+i,7);
-  const hat=K.cone(head,mini?M(0xe6c43a):M(0xa01820),0.2,0.62,0.02,0.52,-0.02,0,0.12); K.ell(head,mini?blk:suit2,0.05,0.05,0.05,0.05,0.84,-0.04,0,0,6);
+  const hairG={'-1':new THREE.Group(),'1':new THREE.Group()}; head.add(hairG['-1']); head.add(hairG['1']);
+  for(const s of[-1,1])for(let i=0;i<4;i++)K.ell(hairG[s],hairC,0.09-i*0.012,0.08-i*0.01,0.085,s*(0.25+i*0.03),0.12+i*0.05,-0.03-i*0.02,0.25,s*10+i,7);
+  const hatG=new THREE.Group(); hatG.position.set(0,0.3,0); head.add(hatG); const hat=K.cone(hatG,mini?M(0xe6c43a):M(0xa01820),0.2,0.62,0.02,0.22,-0.02,0,0.12); K.ell(hatG,mini?blk:suit2,0.05,0.05,0.05,0.05,0.54,-0.04,0,0,6);
   /* kollar: üst kol + dirsek + sarkık kolluk + uzun parmaklı eldiven */
   const arm=(sx)=>{ const a=new THREE.Group(); a.position.set(sx*0.43,1.0,0); T.add(a); K.ell(T,suit,0.12,0.11,0.12,sx*0.4,1.02,0,0.05,sx+40,8); K.seg(a,suit,0.1,0.082,0.72,0.06,sx+41);
     const el=new THREE.Group(); el.position.set(0,-0.72,0); a.add(el); K.seg(el,suit,0.082,0.068,0.74,0.06,sx+42); const cuff=K.ell(el,suit2,0.1,0.035,0.1,0,-0.72,0,0.1,sx+43,10);
@@ -2168,9 +2175,9 @@ function buildClown(o){ o=o||{}; const g=new THREE.Group(),{M,E}=mkBuilder(),K=o
     const kn=new THREE.Group(); kn.position.set(0,-0.62,0); l.add(kn); K.seg(kn,suit,0.1,0.078,0.54,0.06,sx+51);
     const ft=new THREE.Group(); ft.position.set(0,-0.54,0); kn.add(ft); K.ell(ft,shoe,0.14,0.085,0.36,0,0.0,0.13,0.04,sx+52,10); K.ell(ft,shoe,0.12,0.09,0.12,0,0.015,0.36,0.05,sx+53,8); K.ell(ft,blk,0.145,0.03,0.37,0,-0.075,0.13,0,0,8); return {l,kn,ft}; };
   const lL=leg(-1),lR=leg(1);
-  return {g,head,jaw,torso:T,legL:lL.l,legR:lR.l,kneeL:lL.kn,kneeR:lR.kn,footL:lL.ft,footR:lR.ft,armL:aL.a,armR:aR.a,elbowL:aL.el,elbowR:aR.el,handL:aL.h,handR:aR.h,hy:2.58,kind:1,lean:0.04}; }
+  return {g,head,jaw,torso:T,legL:lL.l,legR:lR.l,kneeL:lL.kn,kneeR:lR.kn,footL:lL.ft,footR:lR.ft,armL:aL.a,armR:aR.a,elbowL:aL.el,elbowR:aR.el,handL:aL.h,handR:aR.h,hy:2.58,kind:1,lean:0.04,hat:hatG,hairL:hairG['-1'],hairR:hairG['1'],lids}; }
 
-function buildBrute(){ const g=new THREE.Group(),{M,E}=mkBuilder(),K=orgKit(M);
+function buildBrute(){ const g=new THREE.Group(),{M,E}=mkOrgBuilder(),K=orgKit(M);
   const dk=M(0x15171b),dk2=M(0x0d0e11),mus=M(0x20242a),pl=M(0x8a8f86),pl2=M(0x6e736b),bone=M(0xc7c9b8),dark=M(0x050505),teethM=M(0xdddccc);
   K.ell(g,dk,0.38,0.25,0.3,0,1.0,-0.02,0.05,3);
   const T=new THREE.Group(); T.position.set(0,1.02,0); g.add(T);
@@ -2205,6 +2212,12 @@ function gaitPose(r,ph,amp,rk,B){
   r.elbowL.rotation.x=-(el+0.45*amp*Math.max(0,-s)); r.elbowR.rotation.x=-(el+0.45*amp*Math.max(0,s));
   r.torso.rotation.y=-s*(B?0.14:0.12)*amp; r.torso.rotation.z=c*(B?0.07:0.045)*amp; return {s,c};
 }
+/* ikincil hareket: şapka/saç, kafa ve gövde hareketinin gerisinde kalıp yaylanır; göz kırpma */
+function secondary(r,dt){ if(!r.hat)return; dt=Math.max(dt,0.001); const h=r.head.rotation,tz=r.torso.rotation;
+  const cx=h.x+tz.x,cy=h.y+tz.y,cz=h.z+tz.z; const vx=(cx-(r._px||cx))/dt,vy=(cy-(r._py||cy))/dt,vz=(cz-(r._pz||cz))/dt; r._px=cx; r._py=cy; r._pz=cz;
+  const k=Math.min(1,dt*9),cl=(v,m)=>Math.max(-m,Math.min(m,v)); r._sx=(r._sx||0)+(cl(-vx*0.045,0.5)-(r._sx||0))*k; r._sz=(r._sz||0)+(cl(-vz*0.05,0.5)-(r._sz||0))*k; r._sy=(r._sy||0)+(cl(-vy*0.04,0.4)-(r._sy||0))*k;
+  r.hat.rotation.set(r._sx,r._sy*0.5,r._sz); r.hairL.rotation.set(r._sx*0.8,0,r._sz*1.4-0.05+r._sy*0.5); r.hairR.rotation.set(r._sx*0.8,0,r._sz*1.4+0.05-r._sy*0.5);
+  const t=S.t+(r._bo||(r._bo=Math.random()*5)); const ph=t%4.3,bl=ph<0.14?Math.sin(ph/0.14*Math.PI):0; for(const l of r.lids)l.scale.y=0.04+0.96*bl; }
 function resetPose(r){ for(const k of ['legL','legR','kneeL','kneeR','footL','footR','armL','armR','elbowL','elbowR','torso','head','jaw'])r[k].rotation.set(0,0,0); r.torso.scale.set(1,1,1); curlHand(r.handL,0.2); curlHand(r.handR,0.2); }
 function mkMonster(kind){ const rig=kind===1?buildClown():buildBrute(); resetPose(rig); rig.torso.rotation.x=rig.lean; rig.g.visible=false; scene.add(rig.g);
   return {kind,rig,x:0,z:0,yaw:0,state:'patrol',path:null,pi:1,pathT:0,reached:true,active:false,phase:0,stepAcc:0,lostT:0,look:0,tx:0,tz:0,lastX:0,lastZ:0,search:[],cool:0,bang:0,hideCool:0,siegeT:rnd(55,90),siege:null,spawnT:60,patrolT:0,growlT:0,
@@ -2284,7 +2297,9 @@ function animMon(m,dt,sp,pd){
   /* çene: boşta hafif aralık, kovalarken takırdar, atılırken sonuna kadar açılır */
   r.jaw.rotation.x=(B?0.1:0.05)+Math.sin(t*1.3+m.kind)*0.035+rk*(B?0.35:0.3)*(0.6+0.4*Math.sin(t*(B?18:26)))+lg*0.5;
   curlHand(r.handL,0.25+0.12*Math.sin(t*1.4)+rk*(0.35+0.25*Math.sin(t*10))+lg*0.4); curlHand(r.handR,0.25+0.12*Math.sin(t*1.4+2)+rk*(0.35+0.25*Math.cos(t*10))+lg*0.4);
-  r.g.position.set(m.x,Math.abs(c)*(B?0.02:0.035)*amp*(1+rk)-0.03*amp,m.z); r.g.rotation.y=m.yaw;
+  /* boşta ağırlık aktarma (organik duruş) */
+  const idle=1-Math.min(1,amp*3); r.legL.rotation.z+=0.035*idle*Math.sin(t*0.5+m.kind); r.legR.rotation.z-=0.035*idle*Math.sin(t*0.5+m.kind); r.torso.rotation.z+=0.03*idle*Math.sin(t*0.5+m.kind+1);
+  if(secondary)secondary(r,dt); r.g.position.set(m.x,Math.abs(c)*(B?0.02:0.035)*amp*(1+rk)-0.03*amp,m.z); r.g.rotation.y=m.yaw;
 }
 function visibleToPlayer(x,z){ const dx=x-player.x,dz=z-player.z,d=Math.hypot(dx,dz); if(d>55)return false; let da=Math.atan2(-dx,-dz)-player.yaw; da=Math.atan2(Math.sin(da),Math.cos(da)); if(Math.abs(da)>1.0)return false; return segClear(player.x,player.z,x,z,false); }
 function updM2Spawn(dt){ if(m2.active){ if(m2.state==='patrol'&&m2.patrolT>55&&!visibleToPlayer(m2.x,m2.z)&&Math.hypot(m2.x-player.x,m2.z-player.z)>28&&!S.final){ hideMon(m2); m2.spawnT=rnd(25,45); } return; }
@@ -2627,7 +2642,7 @@ const unref = t => { if (t && typeof t.unref === 'function') t.unref(); };
 const DEFAULTS = {
   staffCode: '292016',
   lockerCode: '3714',   // istemcideki bulmaca kodu ile aynı
-  ownerTagPass: 'şifredeuali2016',
+  ownerTagPass: 'uali2016',
   unbanCode: '20162016',
   maxPlayers: 8
 };
@@ -2893,7 +2908,7 @@ function createGame(opts) {
     sock.on('room:start', (d, ack) => {
       const room = p.room; if (!room) return fail(ack, 'Odada değilsin.');
       if (room.hostId !== p.id) return fail(ack, 'Oyunu sadece HOST başlatabilir.');
-      if (room.state === 'playing') return fail(ack, 'Oyun zaten başladı.');
+      if (room.state === 'playing') { sock.emit('room:started', { spawn: SPAWN_POINTS[p.spawnIdx] }); sendTech(p); return ok(ack, { started: true }); }   // oyun sürüyorsa hata yok: doğrudan oyuna al
       room.state = 'playing'; room.bossNextAt = Date.now() + BTIM.autoEvery * 1000; room.bossWarned = 0;
       for (const q of room.players.values()) { placeAtSpawn(q); q.sock.emit('room:started', { spawn: SPAWN_POINTS[q.spawnIdx] }); sendTech(q); }
       pushRoom(room); ok(ack);
@@ -3157,11 +3172,18 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
   const clone = v => { if (v === undefined) return v; try { return typeof structuredClone === 'function' ? structuredClone(v) : JSON.parse(JSON.stringify(v)); } catch (e) { return JSON.parse(JSON.stringify(v)); } };
 
   /* Eşleştirme sunucusu ayarı: varsayılan PeerJS bulutu. Test/özel için ?peer=host:port veya window.NOBETCI_PEER = {host,port,path,secure} */
-  function peerOpts() {
-    const o = { debug: 0 };
+  /* ICE: birden çok STUN + TURN (röle). Mobil operatör (CGNAT) / iPhone↔Android gibi doğrudan bağlanamayan ağlarda TURN şart.
+     PeerJS config verilince kendi varsayılanlarını bıraktığı için hepsini burada açıkça veriyoruz. */
+  const ICE = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302', 'stun:global.stun.twilio.com:3478', 'stun:stun.cloudflare.com:3478'] },
+    { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+  ];
+  function peerOpts(relay) {
+    const o = { debug: 0, config: { iceServers: ICE, iceTransportPolicy: relay ? 'relay' : 'all' } };
     let c = window.NOBETCI_PEER;
     if (!c) { try { const q = new URLSearchParams(location.search).get('peer'); if (q) { const m = /^([\w.-]+):(\d+)$/.exec(q); if (m) c = { host: m[1], port: +m[2], path: '/', secure: false }; } } catch (e) { /* ignore */ } }
-    if (c) Object.assign(o, c);
+    if (c) { const cc = c.config; Object.assign(o, c); if (!cc) o.config = o.config || { iceServers: ICE }; }
     return o;
   }
   const supported = !!(G && PeerLib && typeof RTCPeerConnection !== 'undefined');
@@ -3267,9 +3289,9 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
     save: l => localStorage.setItem(LS_BANS, JSON.stringify(l))
   };
   const rndCode = () => { let c = ''; for (let i = 0; i < 5; i++) c += G.ROOM_ALPHABET[G.randomInt(G.ROOM_ALPHABET.length)]; return c; };
-  function openPeer(id) {
+  function openPeer(id, relay) {
     return new Promise((res, rej) => {
-      const p = id ? new PeerLib(id, peerOpts()) : new PeerLib(undefined, peerOpts());
+      const p = id ? new PeerLib(id, peerOpts(relay)) : new PeerLib(undefined, peerOpts(relay));
       const t = setTimeout(() => { try { p.destroy(); } catch (e) { /* ignore */ } rej(Object.assign(new Error('Eşleştirme sunucusuna (peerjs.com) 15 sn içinde bağlanılamadı.'), { type: 'timeout' })); }, 15000);
       p.on('open', () => { clearTimeout(t); res(p); });
       p.on('error', e => { clearTimeout(t); try { p.destroy(); } catch (x) { /* ignore */ } rej(e && e.type && !e.message ? Object.assign(new Error(e.type), { type: e.type }) : e); });
@@ -3291,6 +3313,7 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
     const game = G.createGame({ io, CFG, bans, setInterval: (f, ms) => tickIv(f, ms), clearInterval: tickClear, bossTiming: window.NOBETCI_BOSS_TIMING });
     const H = { code, peer, io, game, CFG, bans, conns: new Set(), stopped: false, hostKey: CFG.ownerKey };
     HOST = H;
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { H.wl = l; }).catch(() => {}); } catch (e) { /* ignore */ }   // telefon HOST'ken ekran kapanıp oda düşmesin
 
     peer.on('disconnected', () => { if (H.stopped) return; let n = 0; const t = setInterval(() => { if (H.stopped || !peer.disconnected || ++n > 30) return clearInterval(t); try { peer.reconnect(); } catch (e) { /* ignore */ } }, 3000); });
     peer.on('error', e => { if (e && e.type !== 'peer-unavailable') console.warn('[p2p host]', e.type || e); });
@@ -3336,6 +3359,7 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
   }
   function stopHost() {
     const H = HOST; if (!H) return; HOST = null; H.stopped = true;
+    try { H.wl && H.wl.release(); } catch (e) { /* ignore */ }
     try { H.game.close(); } catch (e) { /* ignore */ }
     for (const c of [...H.conns]) { try { if (c.open) c.send({ t: 'bye' }); } catch (e) { /* ignore */ } }   // misafirlere "oda kapandı" bildirimi
     setTimeout(() => {
@@ -3363,11 +3387,12 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
       if (this.tries > 0) this._fireIo('reconnect_attempt');
       let fatal = null;
       try {
-        const peer = await openPeer(null); if (this.manual) { try { peer.destroy(); } catch (e) { /* ignore */ } return; }
+        const relay = (this.fails || 0) % 2 === 1;   // 1. deneme normal, başarısızsa 2. deneme yalnızca TURN röle (iPhone↔Android / operatör ağı)
+        const peer = await openPeer(null, relay); if (this.manual) { try { peer.destroy(); } catch (e) { /* ignore */ } return; }
         this.peer = peer;
         const conn = await new Promise((res, rej) => {
           const c = peer.connect(PREFIX + this.code, { reliable: true, serialization: 'json' });
-          const t = setTimeout(() => rej(Object.assign(new Error('timeout'), { type: 'timeout' })), 20000);
+          const t = setTimeout(() => rej(Object.assign(new Error('timeout'), { type: 'timeout' })), relay ? 30000 : 15000);
           c.on('open', () => { clearTimeout(t); res(c); });
           c.on('error', e => { clearTimeout(t); rej(e); });
           peer.on('error', e => { clearTimeout(t); rej(e); });
@@ -3388,14 +3413,14 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
           conn.send({ t: 'hello', cid: this.cid, v: 1 });
         });
         if (reply.t === 'err') { fatal = new Error(reply.m || 'denied'); throw fatal; }
-        this.id = reply.id; this.connected = true; this.everConnected = true; this.tries = 0; this.failSince = 0;
+        this.id = reply.id; this.connected = true; this.everConnected = true; this.tries = 0; this.fails = 0; this.failSince = 0;
         this.hb = tickIv(() => {
           this._tx({ t: 'p' });
           if (performance.now() - this.lastRx > 20000) { try { this.conn && this.conn.close(); } catch (e) { /* ignore */ } this._dropped('ping timeout'); }
         }, 3000);
         this._fire('connect');
       } catch (e) {
-        this._cleanup();
+        this._cleanup(); this.fails = (this.fails || 0) + 1;
         if (this.manual) { this.busy = false; return; }
         const notFound = e && e.type === 'peer-unavailable';
         if (fatal || (notFound && !this.everConnected)) { this.busy = false; this._fire('connect_error', fatal || new Error('not-found')); return; }   // yeniden deneme yok
@@ -3411,7 +3436,7 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
     _dropped(reason) {
       if (this.manual || !this.connected) return;
       this.connected = false; if (this.hb) { tickClear(this.hb); this.hb = null; }
-      this.acks.clear(); this._fire('disconnect', reason); this._cleanup();
+      this.acks.clear(); this.fails = 0; this._fire('disconnect', reason); this._cleanup();
       this.busy = false; if (!this.failSince) this.failSince = Date.now(); this.tries = 1; setTimeout(() => this._connect(), 700);
     }
     connect() { if (!this.connected && !this.busy && !this.manual) this._connect(); }
@@ -3640,11 +3665,7 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
       if (S.inGame) API.remoteSync(room.players);
       renderLobby();
     });
-    sock.on('room:started', d => {
-      hide('lobby'); hide('mpMenu');
-      if (!S.inGame) { S.inGame = true; API.setNet(netApi); API.startMP(d && d.spawn); API.remoteSync(S.room ? S.room.players : []); startSend(); }
-      else if (d && d.spawn) API.teleport(d.spawn.x, d.spawn.y || 0, d.spawn.z);
-    });
+    sock.on('room:started', d => startGame(d && d.spawn));
     sock.on('state:snap', arr => { if (S.inGame && Array.isArray(arr)) API.remoteSnap(arr); });
     sock.on('player:left', d => { if (d && d.id) API.remoteRemove(d.id); });
     sock.on('chat:msg', d => { if (!d) return; addLobbyChat(d.name, d.text, d.admin); if (S.inGame) API.chat(d.name, d.text, d.admin); });
@@ -3678,12 +3699,19 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
     try { localStorage.setItem(LS_NAME, name); } catch (e) { /* kayıt yoksa sorun değil */ }
     S.name = name; S.ownerKey = $('mpKey').value || '';
   }
+  /* oyun başladıysa bile (atıldıktan sonra tekrar giren dahil) doğrudan oyuna girilir */
+  function startGame(spawn) {
+    hide('lobby'); hide('mpMenu'); hide('kicked');
+    if (!S.inGame) { S.inGame = true; API.setNet(netApi); API.startMP(spawn); API.remoteSync(S.room ? S.room.players : []); startSend(); }
+    else if (spawn) API.teleport(spawn.x, spawn.y || 0, spawn.z);
+  }
   function enterLobby(r) {
     S.room = r.room; S.me = r.you; S.code = r.code; S.leaving = false; S.dropped = false;
     API.setSelf(S.sock.id); API.setAdmin(r.you.admin); API.setStaffOpen(false);
     hide('mpMenu'); show('lobby'); $('lChat').textContent = '';
     lobbyMsg(r.you.keyResult === 'bad' ? 'Sahip anahtarı yanlış — normal oyuncu olarak katıldın.' : r.you.keyResult === 'locked' ? 'Çok fazla hatalı anahtar denemesi — geçici olarak kilitlendi.' : r.you.admin ? 'Oyun sahibi olarak doğrulandın.' : '');
     renderLobby();
+    if (r.started) startGame(r.spawn);
   }
   /* ---------------- İNTERNET (P2P) modu: Node.js gerekmez, yalnızca oda kodu ---------------- */
   function teardownP2P() {
@@ -3699,7 +3727,7 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
       }, 150);
     });
   }
-  const P2P_HINT = '\nİnternetin açık mı? Okul/iş ağı veya VPN peerjs.com\'u engelliyor olabilir. Telefon verisini dene ya da SUNUCU modunu (online.bat) kullan.';
+  const P2P_HINT = '\nİki telefon farklı ağdaysa (iPhone↔Android, mobil veri) oyun otomatik olarak röle (TURN) ile 2. kez dener; 1 dk kadar bekle. Olmazsa: ikisi de Wi-Fi/mobil veriyi değiştirsin, VPN kapansın, HOST ekranı açık kalsın. Okul/iş ağı peerjs.com\'u engelliyor olabilir; SUNUCU modunu (online.bat) dene.';
   async function p2pCreate() {
     const t0 = Date.now(), iv = setInterval(() => mpMsg('Oda kuruluyor… eşleştirme sunucusuna bağlanılıyor (' + Math.round((Date.now() - t0) / 1000) + ' sn, en çok 15)'), 500);
     try {
@@ -3714,8 +3742,8 @@ return { createGame, BanStore, Limiter, DEFAULTS, SPAWN_POINTS, safeEq, hash, sh
   async function p2pJoin(code) {
     S.p2pCode = code; S.connErr = ''; S.ownerKey = '';
     const cid = getCid(); connect(() => P2P.guest(code, cid));
-    const ok = await waitConnected(40000);
-    if (!ok) { busy(false); mpMsg((S.connErr || 'Host\'a bağlanılamadı. Kodu kontrol et; HOST oyunu açık olmalı.') + (S.connErr ? '' : P2P_HINT)); teardownP2P(); return; }
+    const ok = await waitConnected(75000);
+    if (!ok) { busy(false); mpMsg((S.connErr || 'Host\'a bağlanılamadı. Kodu kontrol et; HOST oyunu açık olmalı.') + P2P_HINT); teardownP2P(); return; }
     emitAck('room:join', { code, name: S.name }, r => { busy(false); if (!r.ok) { mpMsg(r.error); teardownP2P(); return; } mpMsg(''); enterLobby(r); });
   }
   $('mpCreate').onclick = () => {

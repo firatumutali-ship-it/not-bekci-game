@@ -50,7 +50,7 @@ const unref = t => { if (t && typeof t.unref === 'function') t.unref(); };
 const DEFAULTS = {
   staffCode: '292016',
   lockerCode: '3714',   // istemcideki bulmaca kodu ile aynı
-  ownerTagPass: 'şifredeuali2016',
+  ownerTagPass: 'uali2016',
   unbanCode: '20162016',
   maxPlayers: 8
 };
@@ -316,7 +316,7 @@ function createGame(opts) {
     sock.on('room:start', (d, ack) => {
       const room = p.room; if (!room) return fail(ack, 'Odada değilsin.');
       if (room.hostId !== p.id) return fail(ack, 'Oyunu sadece HOST başlatabilir.');
-      if (room.state === 'playing') return fail(ack, 'Oyun zaten başladı.');
+      if (room.state === 'playing') { sock.emit('room:started', { spawn: SPAWN_POINTS[p.spawnIdx] }); sendTech(p); return ok(ack, { started: true }); }   // oyun sürüyorsa hata yok: doğrudan oyuna al
       room.state = 'playing'; room.bossNextAt = Date.now() + BTIM.autoEvery * 1000; room.bossWarned = 0;
       for (const q of room.players.values()) { placeAtSpawn(q); q.sock.emit('room:started', { spawn: SPAWN_POINTS[q.spawnIdx] }); sendTech(q); }
       pushRoom(room); ok(ack);

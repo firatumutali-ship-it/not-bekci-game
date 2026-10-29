@@ -59,6 +59,7 @@ async function walk(c, from, to, y) {
   r = await call(g1, 'room:start', {}); assert(!r.ok); ok('HOST olmayan oyunu başlatamaz');
   r = await call(host, 'room:start', {}); assert(r.ok);
   await waitEv(host, 'room:started'); await waitEv(g1, 'room:started'); ok('HOST başlattı, herkese room:started gitti');
+  r = await call(host, 'room:start', {}); assert(r.ok && r.started); await waitEv(host, 'room:started'); ok('oyun sürerken tekrar başlat denenirse hata yok, doğrudan oyuna alınır');
   const hostId = host.id, g1Id = g1.id;
   await walk(host, { x: -3, z: 46.6 }, { x: -3, z: 40 });
   let snap = await waitEv(g1, 'state:snap'); await sleep(150);
@@ -197,13 +198,13 @@ async function walk(c, from, to, y) {
   r = await call(pl, 'admin:tags', { owner: true }); assert(!r.ok && r.needPass); ok('OWNER etiketi şifresiz açılamaz (şifre istendi)');
   r = await call(pl, 'admin:tags', { owner: true, pass: 'yanlis' }); assert(!r.ok && r.needPass && /HATALI/.test(r.error)); ok('yanlış OWNER şifresi reddedildi');
   assert(!s.rooms.get(ec).players.get(pl.id).tags.owner);
-  r = await call(pl, 'admin:tags', { owner: true, pass: 'şifredeuali2016' }); assert(r.ok && r.tags.owner); ok('doğru OWNER şifresiyle OWNER etiketi açıldı');
+  r = await call(pl, 'admin:tags', { owner: true, pass: 'uali2016' }); assert(r.ok && r.tags.owner); ok('doğru OWNER şifresiyle OWNER etiketi açıldı');
   await sleep(250); const up2 = viewer.events.filter(e => e[0] === 'room:update').pop(); assert(up2[1].players.find(q => q.id === pl.id).tg === 7); ok('OWNER etiketi diğer oyuncuya yayınlandı (tg=7)');
   r = await call(pl, 'admin:tags', { owner: false }); assert(r.ok && !r.tags.owner); r = await call(pl, 'admin:tags', { owner: true }); assert(r.ok && r.tags.owner); ok('şifre bir kez girilince kapat/aç tekrar şifre istemiyor');
   const ow = await client(url); r = await call(ow, 'room:create', { name: 'Gercek', ownerKey: OWNER }); assert(r.you.admin);
   r = await call(ow, 'admin:tags', { owner: true }); assert(!r.ok && r.needPass); ok('sahip anahtarı olan bile OWNER etiketi için şifre girmek zorunda');
   for (let i = 0; i < 5; i++) await call(ow, 'admin:tags', { owner: true, pass: 'x' + i });
-  r = await call(ow, 'admin:tags', { owner: true, pass: 'şifredeuali2016' }); assert(!r.ok && /bekle/.test(r.error)); ok('OWNER şifresi deneme sınırı (5/dk) çalışıyor');
+  r = await call(ow, 'admin:tags', { owner: true, pass: 'uali2016' }); assert(!r.ok && /bekle/.test(r.error)); ok('OWNER şifresi deneme sınırı (5/dk) çalışıyor');
   r = await call(pl, 'admin:tags', { staff: false, dev: false }); assert(r.ok && !r.tags.staff && !r.tags.dev); ok('etiketler kapatılabiliyor');
   r = await call(pl, 'hammer:equip', { type: null }); assert(r.ok && r.returned === 'ban' && r.equipped === null); ok('0 ile bırakılan çekiç Staff Room\'daki yerine döndü');
   r = await call(pl, 'hammer:equip', { type: 'ban' }); assert(!r.ok); ok('geri dönen çekiç tekrar alınmadan seçilemez');
